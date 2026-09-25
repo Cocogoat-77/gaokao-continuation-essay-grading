@@ -1,6 +1,6 @@
 # 高中英语读后续写 · 自动批改 Skill
 
-**v1.0.0**（2026-09-26 首次发布） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
+**v1.1.0**（2026-09-26） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
 
 把学生**手写**的读后续写答题卡（扫描件）批量转成结构化批改报告（HTML + A4 PDF）；批整班时还会顺带生成一份班级成绩台账。
 
@@ -41,6 +41,8 @@ C:\Users\<你的用户名>\.workbuddy\skills\
 ```bash
 python -m pip install pymupdf playwright openpyxl
 python -m playwright install chromium
+# 只有要上架为付费技能（Pay Skill）时才需要：
+python -m pip install pycryptodome
 ```
 
 Chromium 下载慢的话先换镜像：
@@ -92,6 +94,38 @@ python scripts/render.py --list-themes
 两套共用同一份 JSON、同一套占位符契约，换皮肤只是换 CSS，不影响内容与判定。
 `--marks strict` 可把修订标记强制拉回 `#CACACA` 灰底 + 红字的规格口径（默认跟随皮肤配色）。
 
+## 上架为付费技能（Pay Skill）
+
+本 Skill 可以上架 SkillHub 作为**按报告篇数计费**的付费技能（默认 `0.01` 元/篇），
+付费链路基于支付宝 **AI 按量付费（HTTP 402 协议）**，四步编排 `probe → pay → complete → ack`：
+
+| 步骤 | 做什么 |
+|---|---|
+| **probe** | 请求资源；未付款时服务端返回 **HTTP 402** + **`Payment-Needed`** 账单头（Base64URL，含 RSA2 商家签名），并把订单落库 |
+| **pay** | 把账单交给支付宝官方支付能力拉起收银台，用户本人付款（Agent 只编排，不代付） |
+| **complete** | 付款后携带 **`Payment-Proof`** 重试原请求；服务端调 `alipay.aipay.agent.payment.verify` 验付，通过后幂等履约 |
+| **ack** | 交付后调 `alipay.aipay.agent.fulfillment.confirm` 确认履约；失败可重试且保持幂等 |
+
+```bash
+# 离线跑通整条链路（生成密钥 + mock 网关，不需要商户资质、不联网）
+python scripts/skillpay/selftest.py
+
+# 看价格 / 请求资源（未付款输出 402 账单）/ 携带凭证重试
+python scripts/skillpay/cli.py pay-info
+python scripts/skillpay/cli.py probe --jsondir ./final --outdir ./out
+python scripts/skillpay/cli.py complete --payment-proof "<Base64URL>" --jsondir ./final --outdir ./out
+
+# 本地 HTTP 服务：返回真实的 402 状态码与 Payment-Needed / Payment-Validation 响应头
+python scripts/skillpay/server.py --port 8787
+```
+
+计费口径、协议字段、五项必做控制（402 账单下发 / 携带凭证重试 / 验付调用 / 履约确认 /
+订单持久化与幂等）、配置环境变量、上线前核对清单，全部见
+[`references/skillpay.md`](references/skillpay.md)。
+
+> **安全提醒**：商家应用私钥只从环境变量或本地 `skillpay.local.json` 读取，
+> **不要提交到仓库**（`.gitignore` 已排除 `skillpay.local.json`、`state/`、`*.pem`）。
+
 ## 目录结构
 
 ```
@@ -107,13 +141,24 @@ gaokao-continuation-essay-grading/
 ├── references/
 │   ├── report-spec.md              版式 + 配色 + 数据契约（原版的唯一权威规格）
 │   ├── themes.md                   两套皮肤的设计规范、修订标记口径、模板占位符契约
+│   ├── skillpay.md                 支付宝 AI 按量付费（402 协议）接入规范
 │   ├── rubric.md                   25 分制档位与校准锚点、固定句式
 │   └── tag-library.md              问题标签库 / 错误类型库 / 衔接检查用语
 └── scripts/
     ├── manifest.py                 按学号配对答题卡与已有报告，生成作业清单
     ├── aggregate.py                按班级聚合佳句与场景词汇，生成成绩台账
     ├── render.py                   JSON → HTML → A4 PDF（--theme 选皮肤）
-    └── pack_for_upload.py          白名单打包，供手动上传 GitHub（见「数据与隐私」）
+    ├── pack_for_upload.py          白名单打包，供手动上传 GitHub（见「数据与隐私」）
+    └── skillpay/                   付费改造（Pay Skill）
+        ├── config.py               配置与沙箱/生产切换
+        ├── store.py                订单持久化与幂等（SQLite）
+        ├── bill.py                 402 账单下发（Payment-Needed + RSA2 签名）
+        ├── proof.py                Payment-Proof 解析
+        ├── gateway.py              payment.verify / fulfillment.confirm 调用
+        ├── service.py              probe / pay / complete / ack 编排
+        ├── server.py               本地 HTTP 服务（真实 402 状态码）
+        ├── cli.py                  命令行入口
+        └── selftest.py             离线自测（生成密钥 + mock 网关）
 ```
 
 ## 设计要点
@@ -182,3 +227,11 @@ GNU General Public License for more details.
 ## 高考评分标准说明
 
 `references/rubric.md` 中的 25 分制档位划分依据公开的普通高等学校招生全国统一考试英语科评分标准整理，属公开信息；其中的分数校准锚点由作者对实际批改结果统计得出。
+
+## 致谢
+
+- **开发方式**：本项目的脚本、两套报告模板、参考文档与发布流程，是在 **[WorkBuddy](https://www.workbuddy.cn) 的 AI 助手**协作下、经人机往复迭代打磨而成；选题、评分口径、版式取舍与最终验收由作者（在职高中英语教师）决定。
+- **数据来源**：判定阈值与校准锚点来自作者对本班实际批改结果的统计；报告结构参考自一份批改报告样本（见上「版式来源说明」）。
+- **致使用者**：感谢每一位使用、反馈并改进这个 Skill 的老师。
+
+> 注：AI 助手不持有本项目著作权，也不在 [GPL-3.0](LICENSE) 的授权方之列 —— 版权归作者所有（见上「版权与许可」）。此处仅作开发过程的如实说明。

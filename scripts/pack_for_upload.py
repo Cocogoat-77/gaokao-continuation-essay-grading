@@ -32,6 +32,7 @@ WHITELIST = [
     # --- 根目录 ---
     "SKILL.md",             # Skill 主文件：工作流、硬约束、质量闸门
     "README.md",
+    "CHANGELOG.md",         # 版本变更记录
     "LICENSE",
     ".gitignore",           # 对用 git 命令的人是安全网；手动上传时它只是个说明文件
     ".gitattributes",
@@ -43,11 +44,23 @@ WHITELIST = [
     "references/themes.md",        # 两套皮肤的设计规范 + 模板占位符契约
     "references/rubric.md",        # 25 分制档位与校准锚点
     "references/tag-library.md",   # 标签库 / 错误类型库 / 衔接检查用语
+    "references/skillpay.md",      # 支付宝 AI 按量付费（402 协议）接入规范
     # --- 脚本 ---
     "scripts/manifest.py",
     "scripts/aggregate.py",
     "scripts/render.py",
     "scripts/pack_for_upload.py",
+    # --- 付费改造（Pay Skill）---
+    "scripts/skillpay/__init__.py",
+    "scripts/skillpay/config.py",     # 配置与沙箱/生产切换
+    "scripts/skillpay/store.py",      # 订单持久化与幂等
+    "scripts/skillpay/bill.py",       # 402 账单下发（Payment-Needed + RSA2 签名）
+    "scripts/skillpay/proof.py",      # Payment-Proof 解析
+    "scripts/skillpay/gateway.py",    # payment.verify / fulfillment.confirm 调用
+    "scripts/skillpay/service.py",    # probe / pay / complete / ack 编排
+    "scripts/skillpay/server.py",     # 本地 HTTP 服务（真实 402）
+    "scripts/skillpay/cli.py",        # 命令行入口
+    "scripts/skillpay/selftest.py",   # 离线自测
 ]
 
 # ============ 黑名单：这些东西一个都不能上传 ============
@@ -60,6 +73,20 @@ NEVER_UPLOAD = [
     "*.xlsx                      —— 班级台账（全班姓名 + 成绩）",
     "__pycache__/  .venv/        —— Python 缓存与虚拟环境",
 ]
+
+
+def default_outdir():
+    """默认输出目录：当前目录下；**但绝不落在 Skill 目录内部**。
+
+    在 Skill 目录里直接跑 `python scripts/pack_for_upload.py` 是最常见的用法，
+    此时若默认打到 ./上传到GitHub，包就套在 Skill 自己里面了（还可能被一起传上去）。
+    于是退到**用户主目录**——既在 Skill 之外，也不会污染 WorkBuddy 的技能扫描目录。
+    """
+    cwd = os.path.abspath(os.getcwd())
+    skill = os.path.abspath(SKILL_DIR)
+    if cwd == skill or cwd.startswith(skill + os.sep):
+        return os.path.join(os.path.expanduser("~"), "上传到GitHub")
+    return os.path.join(cwd, "上传到GitHub")
 
 
 def pack(outdir, dry_run=False):
@@ -105,11 +132,12 @@ def pack(outdir, dry_run=False):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--outdir", default=os.path.join(os.getcwd(), "上传到GitHub"),
-                    help="输出目录，默认 ./上传到GitHub")
+    ap.add_argument("--outdir", default=None,
+                    help="输出目录。默认：当前目录下的 上传到GitHub/；"
+                         "若在 Skill 目录内运行，则改用用户主目录下的 上传到GitHub/")
     ap.add_argument("--dry-run", action="store_true", help="只打印清单，不拷文件")
     args = ap.parse_args()
-    sys.exit(pack(args.outdir, args.dry_run))
+    sys.exit(pack(args.outdir or default_outdir(), args.dry_run))
 
 
 if __name__ == "__main__":

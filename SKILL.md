@@ -1,8 +1,8 @@
 ---
 name: gaokao-continuation-essay-grading
-description: "高中英语读后续写作文自动批改与报告生成。输入学生手写答题卡（JPEG 扫描件）与原题材料，输出逐句批改、情节分析、出彩表达、个性化提升、润色稿等 11 个板块的个人报告（HTML + A4 PDF），并可批量处理整个班级、生成班级成绩台账。触发词：读后续写批改、作文自动批改、答题卡批改、英语作文报告、生成批改报告、批量批改作文。"
-description_en: "Grade handwritten Gaokao continuation-writing answer sheets and produce structured A4 PDF reports (11 sections: sentence-by-sentence correction, plot analysis, highlights, personalised upgrades, polished version) plus a class-wide score ledger. Use for continuation-writing grading, answer-sheet grading, batch essay grading, or generating English essay feedback reports."
-version: 1.0.0
+description: "高中英语读后续写作文自动批改与报告生成。输入学生手写答题卡（JPEG 扫描件）与原题材料，输出逐句批改、情节分析、出彩表达、个性化提升、润色稿等 11 个板块的个人报告（HTML + A4 PDF），并可批量处理整个班级、生成班级成绩台账。支持上架为按篇计费的付费技能（Pay Skill）：内置支付宝 AI 按量付费 402 协议，含 Payment-Needed 账单下发、Payment-Proof 携带凭证重试、payment.verify 验付调用、fulfillment.confirm 履约确认与订单持久化幂等。触发词：读后续写批改、作文自动批改、答题卡批改、英语作文报告、生成批改报告、批量批改作文、付费技能、按量付费、402 收款、Pay Skill。"
+description_en: "Grade handwritten Gaokao continuation-writing answer sheets and produce structured A4 PDF reports (11 sections: sentence-by-sentence correction, plot analysis, highlights, personalised upgrades, polished version) plus a class-wide score ledger. Can be published as a pay-per-report paid skill: ships an Alipay AI pay-per-use (HTTP 402) integration with Payment-Needed billing, Payment-Proof retry, alipay.aipay.agent.payment.verify, alipay.aipay.agent.fulfillment.confirm, and idempotent order persistence. Use for continuation-writing grading, answer-sheet grading, batch essay grading, paid skill monetisation, or generating English essay feedback reports."
+version: 1.1.0
 author: Cocogoat-77
 agent_created: true
 ---
@@ -26,11 +26,11 @@ agent_created: true
 首次使用前确认（缺失则装到 WorkBuddy 的隔离环境，不要污染用户全局 Python）：
 
 ```bash
-<python> -m pip install pymupdf playwright openpyxl
+<python> -m pip install pymupdf playwright openpyxl pycryptodome
 <python> -m playwright install chromium
 ```
 
-`pymupdf` 用于加盖页眉页脚；`playwright` + 自带 Chromium 用于 HTML→PDF（**不要用命令行的 Edge 无头模式**，用户已打开 Edge 时会被接管并静默失败）；`openpyxl` 仅生成班级台账时需要。
+`pymupdf` 用于加盖页眉页脚；`playwright` + 自带 Chromium 用于 HTML→PDF（**不要用命令行的 Edge 无头模式**，用户已打开 Edge 时会被接管并静默失败）；`openpyxl` 仅生成班级台账时需要；`pycryptodome` 仅上架 Pay Skill 时需要（402 账单的 RSA2 签名，也可用 `cryptography` 替代）。
 
 ## 四路工作流
 
@@ -107,6 +107,59 @@ python scripts/render.py --jsondir ./final --outdir ./out
 
 同一学生跨次 JSON 累积后，对比 `score`、`word_count`、`errors[].type` 集合与 `tags`，输出进步曲线与反复出现的易错点清单。数据不足两次时不生成。
 
+## 付费调用（Pay Skill · 支付宝 AI 按量付费）
+
+本 Skill 上架 SkillHub 作为 **Pay Skill** 时，按 **报告篇数**计费（默认 `0.01` 元/篇）。
+付费链路走支付宝 **AI 按量付费（HTTP 402 协议）**：`402` 账单下发 → 携带 `Payment-Proof` 重试
+→ 验付 → 履约确认 → 订单持久化与幂等。完整规范见 **`references/skillpay.md`**，实现在 `scripts/skillpay/`。
+
+### 四步编排 `probe → pay → complete → ack`
+
+| 步骤 | 谁做 | 做什么 | 命令 |
+|---|---|---|---|
+| **probe** | 服务端 | 请求资源；未付款时返回 **HTTP 402** + **`Payment-Needed`** 响应头（Base64URL 账单），并**先把订单落库**再返回账单 | `cli.py probe` / `POST /v1/grade` |
+| **pay** | Agent + 支付宝官方支付能力 | 把 `Payment-Needed` 交给支付能力拉起收银台，用户本人扫码/免密付款。**Agent 只编排、不代付** | `cli.py pay-info` |
+| **complete** | 服务端 | 付款后用同一请求 + **`Payment-Proof`** 重试；调 `alipay.aipay.agent.payment.verify` 验付，通过后幂等履约 | `cli.py complete` |
+| **ack** | 服务端 | 交付后调 `alipay.aipay.agent.fulfillment.confirm` 确认履约；失败可重试且保持幂等 | `cli.py ack` |
+
+> **前置检查**：发起下单前先确认当前智能体已安装支付宝支付能力工具
+> （如官方 `alipay-payment-skill`）。不存在则终止流程，提示用户升级智能体或安装「支付宝 AI 付」官方 Skill。
+
+### 调用示例
+
+```bash
+# 0) 离线跑通整条链路（生成密钥 + mock 网关，无需商户资质、不联网）
+python scripts/skillpay/selftest.py
+
+# 1) probe —— 未付款，输出 402 账单，退出码 402
+python scripts/skillpay/cli.py probe --jsondir ./final --outdir ./out
+
+# 2) complete —— 付款后携带 Payment-Proof 重试原请求（验付 + 履约）
+python scripts/skillpay/cli.py complete --payment-proof "<Base64URL>" \
+    --jsondir ./final --outdir ./out
+
+# 3) 起本地服务，返回真实的 402 状态码与 Payment-Needed / Payment-Validation 响应头
+python scripts/skillpay/server.py --port 8787
+```
+
+### 五项必做控制（对应 SkillHub 付费改造检查）
+
+| # | 控制项 | 要求 | 实现位置 |
+|---|---|---|---|
+| 1 | **402 账单下发** | 无有效 `Payment-Proof` → HTTP **402** + **`Payment-Needed`**（Base64URL 账单，含 `protocol`/`method` 两段与 RSA2 `seller_signature`）；**必须在返回账单前持久化订单** | `bill.build_payment_needed` / `service.probe` |
+| 2 | **携带凭证重试** | 付款后用同一请求带 **`Payment-Proof`** 重试；凭证无效一律回到 402，**不得因"结果不明"要求用户重复付款** | `proof.parse_payment_proof` / `service.complete` |
+| 3 | **验付调用** | 必须调 `alipay.aipay.agent.payment.verify`，并同时校验 `active=true`、金额、`out_trade_no`、`resource_id`、`trade_no` 未重复履约、本地订单状态 | `gateway.AlipayGateway.payment_verify` |
+| 4 | **履约确认** | 资源生成后必须调 `alipay.aipay.agent.fulfillment.confirm`，**确认成功后才标记 `FULFILLED`**；失败返回 502 且允许用同一凭证重试 | `gateway.fulfillment_confirm` / `store.mark_fulfilled` |
+| 5 | **订单持久化与幂等** | 返回 `Payment-Needed` 前持久化 `out_trade_no`/`resource_id`/篇数/金额/状态/有效期；本地订单匹配、资源防串、金额一致性、**同一订单重复携带 `Payment-Proof` 不重复发放资源** | `store.py`（SQLite + `BEGIN IMMEDIATE` + `trade_no` 唯一索引） |
+
+**计费口径**：账单金额 = `unit_price`（默认 `0.01` 元/篇）× 本次请求篇数
+（`--json` 记 1 篇，`--jsondir` 记目录里 `.json` 的个数；单次上限 `quantity_cap`，默认 2500）。
+`unit_price` 必须与 SkillHub 发布表单里的定价一致。
+
+**安全红线**：应用私钥只从环境变量或本地非入库配置读取，禁止写进包内／日志／公开仓库
+（`skillpay.local.json`、`state/`、`*.pem` 均已进 `.gitignore`）；不打印 `Payment-Proof` /
+`Payment-Validation` 原始值；沙箱 `service_id` 固定 `api_mock_service_id`，生产必须换成真实值。
+
 ## 硬约束
 
 1. **学生自己划掉／涂改的词，一律不转写、不识别、不进报告。** 转写得到的是学生**最终想保留的文本**；被划掉的词不出现在报告的任何位置，不计入词数，也不作为语法错误（它只是学生的自改过程，不是错误）。报告里出现的 `<del>` 只用于**指出真实错误并给出订正**，绝不能用来还原学生的自改痕迹。
@@ -133,6 +186,7 @@ python scripts/render.py --jsondir ./final --outdir ./out
 - [ ] `face.grade` 按 `references/rubric.md` 第四节的**优先级**判定：第一优先级＝**字形规范性／字母大小一致性／间距一致性**（三项是硬门槛），划改类痕迹排在第三优先级、几乎不计入；描述撰写顺序与之一致，判优秀时用词要正面（不用"较为""基本"拖后腿）
 - [ ] PDF 为 A4，每页均有页眉（班级/学号/姓名）与页脚（页码/日期）
 - [ ] `class_shared` 的佳句与场景词汇在同批所有报告中完全一致
+- [ ] **上架 Pay Skill 时**：`python scripts/skillpay/selftest.py` 全绿（402 账单下发 → 签名可验 → 携带 `Payment-Proof` 重试 → 验付 → 幂等履约 → 履约确认，含失败分支）；`unit_price` 与发布表单定价一致；私钥未入库、未进日志
 
 ## 常见问题
 

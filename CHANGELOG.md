@@ -11,6 +11,40 @@
 
 ---
 
+## [1.1.0] - 2026-09-26
+
+新增**付费上架能力**：可作为 SkillHub 的 Pay Skill 上架，按报告篇数计费。
+
+### 新增
+
+- **支付宝 AI 按量付费（HTTP 402 协议）接入层**（`scripts/skillpay/`），完整实现四步编排
+  `probe → pay → complete → ack`：
+  - **402 账单下发**：无有效 `Payment-Proof` 时返回 HTTP 402 + `Payment-Needed` 响应头，
+    Base64URL 编码、含 `protocol` / `method` 两段与 RSA2 `seller_signature`（本地签名，不请求支付宝）。
+  - **携带凭证重试**：付款后用同一请求带 `Payment-Proof` 重试；凭证无效一律回到 402。
+  - **验付调用**：`alipay.aipay.agent.payment.verify`，并校验 `active` / 金额 / `out_trade_no` /
+    `resource_id` / `trade_no` 未重复履约 / 本地订单状态。
+  - **履约确认**：`alipay.aipay.agent.fulfillment.confirm`，确认成功后才标记 `FULFILLED`，
+    失败返回 502 且允许用同一凭证重试。
+  - **订单持久化与幂等**：SQLite 订单库，`BEGIN IMMEDIATE` 原子占位 + `trade_no` 唯一索引，
+    同一订单重复携带 `Payment-Proof` 不重复发放资源。
+- **按篇计费**：账单金额 = 单价（默认 `0.01` 元/篇）× 本次请求篇数；单次调用篇数上限
+  `quantity_cap`（默认 2500，即上限账单 25.00 元）防止误传目录导致天价账单；金额用 `Decimal` 定点计算。
+- **本地 HTTP 服务**（`server.py`）返回真实 402 状态码与响应头；**命令行入口**（`cli.py`）
+  暴露 `probe` / `pay-info` / `complete` / `ack` / `status` / `selftest` 六个子命令。
+- **离线自测**（`selftest.py`）：生成 RSA 密钥 + mock 网关，跑通完整链路与全部失败分支，共 **48 项断言**。
+- **接入规范文档** [`references/skillpay.md`](references/skillpay.md)：协议字段、五项必做控制、
+  配置环境变量、沙箱↔生产切换、安全红线、上线前核对清单。
+
+### 说明
+
+- 付费层对原有批改能力**零侵入**：不启用付费时，直接跑 `scripts/render.py` 的行为与 1.0.0 完全一致。
+- 新增可选依赖 `pycryptodome`（仅在需要 402 签名时安装；也可用 `cryptography`）。
+- `.gitignore` 新增排除 `skillpay.local.json`、`state/`、`*.pem`、`*.key`、`*.db` ——
+  商家私钥与订单库绝不入库。
+
+---
+
 ## [1.0.0] - 2026-09-26
 
 首次公开发布。
