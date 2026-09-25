@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{{TITLE}}</title>
+<style>
+/* ==========================================================================
+   学生批改报告 · Apple 设计语言版（测试皮肤 · 打印友好修订版）
+   --------------------------------------------------------------------------
+   设计 token 来自 design-md/apple/DESIGN.md：
+     画布    canvas #ffffff（整份报告只有白纸一个底色）
+     灰面    parchment #f5f5f7 —— 已降级为「灰色圆角矩形卡片」，不再做通栏色带
+     文字    ink #1d1d1f / muted #7a7a7a / muted-2 #6e6e73
+     描边    hairline #e0e0e0 / divider-soft #f0f0f0 / 卡片线 #e8e8ed
+     强调    Action Blue #0066cc（唯一强调色，用在描边 + 文字上）
+     圆角    胶囊 9999px / 卡片 14~16px
+     字体    SF Pro Display/Text → system-ui / -apple-system 系统栈
+
+   本版三条修订（老师要求）：
+     ① 页面底色恒为白：原先的通栏灰带 → 内嵌的灰色圆角矩形卡片。
+     ② 大标题（评语 / 逐句批改 / 卷面点评 …）→ 小胶囊，**只有蓝色描边 + 蓝字，无底色**。
+     ③ 去掉全部黑色/暗色底（原「出彩表达」「我的作文润色」两块暗块已转白底），
+        因为这份报告要直接上打印机。
+   ========================================================================== */
+
+/* 左右边距设为 0，让卡片能自己控制内缩；上下保留边距，作为每页页眉页脚的安全区，
+   也顺便让 @page 的 background 铺满每一页。 */
+@page { size: A4; margin: 46pt 0; background: #ffffff; }
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; background: #ffffff;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 9pt; line-height: 1.47; letter-spacing: -0.1pt; color: #1d1d1f;
+}
+p { margin: 0; }
+.b { font-weight: 600; }
+a { color: #0066cc; }
+
+/* ===== 版块容器：白底段落 + 灰色圆角卡片 交替 ===== */
+.tile { width: 100%; }
+.tile-light { background: transparent; }              /* 白纸本体，不画任何底色 */
+.in { padding: 15pt 26pt; }
+
+/* 灰色圆角矩形卡片：左右各内缩 13pt、卡片自身内边距 13pt，
+   合计 26pt —— 与白底段落的文字左边界严丝合缝，通篇一条竖线对齐。 */
+.tile-parchment { background: transparent; padding: 0 13pt 11pt; }
+.tile-parchment > .in {
+  background: #f5f5f7; border-radius: 16px;
+  margin: 0; padding: 14pt 13pt 15pt;
+}
+
+/* ===== 抬头（hero）===== */
+.hero .in { padding: 26pt 26pt 22pt; text-align: center; }
+.hero .kicker { font-size: 7.4pt; letter-spacing: 1.2pt; color: #7a7a7a; margin-bottom: 8pt; }
+.hero h1 {
+  font-size: 20pt; font-weight: 600; line-height: 1.15; letter-spacing: -0.5pt;
+  margin: 0; color: #1d1d1f;
+}
+.hero .sub { font-size: 10pt; font-weight: 400; line-height: 1.4; color: #7a7a7a; margin-top: 9pt; }
+
+/* ===== 大标题 = 小胶囊：只有边缘有颜色，没有背景色 =====
+   display:table 让胶囊收缩到文字宽度，同时保持块级（不跟正文挤在同一行）。
+   蓝色描边 + 蓝字，是整份报告里唯一的「章节锚点」视觉。 */
+h2.sh {
+  display: table;
+  border: 0.7pt solid #0066cc; border-radius: 9999px;
+  padding: 3.2pt 12pt 3.6pt; background: transparent;
+  font-size: 10.4pt; font-weight: 600; line-height: 1.16; letter-spacing: -0.1pt;
+  color: #0066cc;
+  margin: 0 0 9pt; page-break-after: avoid;
+}
+/* 次级小标题 = 同款胶囊但退一级：发丝灰描边 + 墨色字 */
+h3.ss {
+  display: table;
+  border: 0.6pt solid #d2d2d7; border-radius: 9999px;
+  padding: 2.2pt 10pt 2.5pt; background: transparent;
+  font-size: 8.8pt; font-weight: 600; line-height: 1.2; letter-spacing: -0.05pt;
+  color: #1d1d1f;
+  margin: 13pt 0 5pt; page-break-after: avoid;
+}
+
+/* ===== 标签胶囊：一律只留描边（省墨，且和标题同一套语言）===== */
+.chips { margin: 2pt 0 0; }
+.chip {
+  display: inline-block; border-radius: 9999px; padding: 3pt 11pt; margin: 0 6pt 6pt 0;
+  font-size: 8pt; font-weight: 400;
+  background: transparent; border: 0.6pt solid #d2d2d7; color: #1d1d1f;
+}
+.chip.blue { border-color: #0066cc; color: #0066cc; }
+
+/* ===== 得分：hero 式的产品名排版 ===== */
+.score-line { display: flex; align-items: baseline; gap: 10pt; margin-bottom: 12pt; }
+.score-n { font-size: 30pt; font-weight: 600; line-height: 1; letter-spacing: -1pt; }
+.score-l { font-size: 8pt; color: #7a7a7a; letter-spacing: 0.6pt; }
+
+.crit { margin-bottom: 8pt; }
+.crit:last-child { margin-bottom: 0; }
+.crit p { text-align: justify; }
+.crit-h { font-size: 8.6pt; font-weight: 600; margin-bottom: 2.5pt; }
+
+/* ===== 修订标记 =====
+   Apple 的调色板里没有红，但批改报告必须标错——红色只作语义色用，不参与品牌层。
+   订正文本走 Action Blue（系统里唯一的强调色），正好落在「这是该点的东西」上。 */
+del { color: #d70015; text-decoration: line-through; text-decoration-color: #d70015; text-decoration-thickness: 0.6pt; }
+ins { color: #0066cc; font-weight: 600; text-decoration: none; }
+
+/* ===== 逐句批改 ===== */
+.sr { margin-bottom: 9pt; }
+.sr:last-child { margin-bottom: 0; }
+.sr-tag { font-size: 7.4pt; font-weight: 600; letter-spacing: 0.4pt; color: #7a7a7a; margin-bottom: 3pt; }
+.sr-txt { text-align: justify; }
+
+/* ===== 工具卡（store utility card：白底 + 1px 发丝线 + 圆角，无阴影）===== */
+.ucard {
+  background: #ffffff; border: 0.6pt solid #e8e8ed; border-radius: 16px;
+  padding: 12pt 14pt; margin: 8pt 0; page-break-inside: avoid;
+}
+.ucard:first-child { margin-top: 0; }
+
+/* ===== 错误分析 ===== */
+.err-item { margin-bottom: 9pt; page-break-inside: avoid; }
+.err-form { text-align: justify; margin-bottom: 3.5pt; }
+.err-note { text-align: justify; }
+.err-note .lbl {
+  display: inline-block; border-radius: 9999px; padding: 1pt 8pt; margin-right: 4pt;
+  font-size: 7.4pt; font-weight: 600;
+  background: transparent; border: 0.6pt solid #bcd7f2; color: #0066cc;
+}
+
+/* ===== 情节分析 ===== */
+.pcard-h { font-size: 9.2pt; font-weight: 600; margin-bottom: 4pt; }
+.pcard-b { text-align: justify; }
+.pcard-b p { margin-bottom: 3pt; }
+.pcard-b p:last-child { margin-bottom: 0; }
+
+.coh { margin-bottom: 8pt; page-break-inside: avoid; }
+.coh-item { text-align: justify; margin-bottom: 3.5pt; }
+
+/* ===== 出彩表达（原暗块，已转白底 + 描边卡）===== */
+.hl-note { margin-bottom: 9pt; color: #7a7a7a; }
+.hl-item {
+  background: #ffffff; border: 0.6pt solid #e8e8ed; border-radius: 14px;
+  padding: 11pt 13pt; margin: 0 0 8pt; page-break-inside: avoid;
+}
+.hl-item:last-child { margin-bottom: 0; }
+.hl-h { font-weight: 600; margin-bottom: 2pt; }
+.hl-point { text-align: justify; }
+.hl-point .lbl { color: #0066cc; font-weight: 600; }
+.hl-point .txt { color: #6e6e73; }
+
+/* ===== 个性化提升 ===== */
+.imp { margin-bottom: 9pt; page-break-inside: avoid; }
+.imp-no { font-size: 9.2pt; font-weight: 600; margin-bottom: 3pt; }
+.imp-row { text-align: justify; margin-bottom: 2.5pt; }
+.imp-lbl { font-weight: 600; margin-right: 4pt; font-size: 8pt; }
+.imp-row.src { color: #7a7a7a; }
+.imp-row.up  { color: #0066cc; }
+
+/* ===== 我的作文润色（原暗块，已转白底 + 描边卡）===== */
+.dp {
+  background: #ffffff; border: 0.6pt solid #e8e8ed; border-radius: 14px;
+  padding: 11pt 13pt; margin: 0 0 8pt; page-break-inside: avoid;
+}
+.dp:last-child { margin-bottom: 0; }
+.dp-lb { font-size: 7.4pt; font-weight: 600; letter-spacing: 0.6pt; color: #7a7a7a; margin-bottom: 3pt; }
+.dp p { text-align: justify; }
+
+/* ===== 表格 ===== */
+table.grid { width: 100%; border-collapse: collapse; }
+table.grid td { vertical-align: top; padding: 6pt 10pt; }
+tr.row { page-break-inside: avoid; }
+table.quotes tr.row { border-bottom: 0.6pt solid #e0e0e0; }
+table.quotes tr.row:last-child { border-bottom: none; }
+table.quotes td.c1 { width: 92pt; }
+table.quotes .who { font-weight: 600; color: #0066cc; font-size: 8.4pt; }
+table.vocab { background: #ffffff; border: 0.6pt solid #e8e8ed; border-radius: 16px; overflow: hidden; }
+table.vocab tr.row { border-bottom: 0.6pt solid #f0f0f0; }
+table.vocab tr.row:last-child { border-bottom: none; }
+table.vocab td.c1 { width: 92pt; font-weight: 600; background: #fafafc; border-right: 0.6pt solid #f0f0f0; }
+table.vocab td.c2 { color: #7a7a7a; }
+
+.pb { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<section class="tile tile-light hero">
+  <div class="in">
+    <div class="kicker">批改报告</div>
+    <h1>{{TITLE}}</h1>
+    <div class="sub">共 11 个板块 · 逐句批改 · 情节分析 · 个性化提升</div>
+  </div>
+</section>
+
+<section class="tile tile-parchment">
+  <div class="in">
+    <h2 class="sh">评语</h2>
+    <div class="score-line"><span class="score-n">{{score}}</span><span class="score-l">得分</span></div>
+    <div class="crit"><div class="crit-h">完成度</div><p>{{completeness}}</p></div>
+    <div class="crit"><div class="crit-h">情节内容</div><p>{{plot_comment}}</p></div>
+    <div class="crit"><div class="crit-h">词汇句式和语法</div><p>{{language_comment}}</p></div>
+  </div>
+</section>
+
+<section class="tile tile-light">
+  <div class="in">
+    <h2 class="sh">本次作文我的问题</h2>
+    <div class="chips">{{#tags}}<span class="chip blue">{{.}}</span>{{/tags}}</div>
+    <h2 class="sh" style="margin-top:14pt">卷面点评</h2>
+    <div class="chips"><span class="chip blue">{{face_grade}}</span></div>
+    <p style="text-align:justify;margin-top:2pt">{{face_text}}</p>
+  </div>
+</section>
+
+<section class="tile tile-parchment">
+  <div class="in">
+    <h2 class="sh">逐句批改</h2>
+    <div class="ucard">
+      <div class="sr"><div class="sr-tag">Paragraph 1</div><p class="sr-txt">{{sr_p1}}</p></div>
+      <div class="sr"><div class="sr-tag">Paragraph 2</div><p class="sr-txt">{{sr_p2}}</p></div>
+    </div>
+    <div class="chips" style="margin-top:8pt">
+      <span class="chip">红色删除线 = 学生原文</span>
+      <span class="chip">蓝色 = 订正文本</span>
+    </div>
+  </div>
+</section>
+
+<section class="tile tile-light">
+  <div class="in">
+    <h2 class="sh">错误分析详情</h2>
+    {{#errors}}<div class="err-item">
+      <p class="err-form"><span class="b">【正确形式】</span>{{correct_html}}</p>
+      {{#notes}}<p class="err-note"><span class="lbl">{{type}}</span>{{text}}</p>
+      {{/notes}}
+    </div>
+    {{/errors}}
+  </div>
+</section>
+
+<section class="tile tile-parchment">
+  <div class="in">
+    <h2 class="sh">情节分析</h2>
+
+    <div class="ucard">
+      <div class="pcard-h">原文情节梳理</div>
+      <div class="pcard-b"><p>{{source_summary}}</p></div>
+    </div>
+
+    <div class="ucard">
+      <div class="pcard-h">续写情节推理</div>
+      <div class="pcard-b">
+        <p>关键思考过程：{{key_thought}}</p>
+        <p>第一段（{{p1_tag}}）：{{p1_plot}}</p>
+        <p>第二段（{{p2_tag}}）：{{p2_plot}}</p>
+        <p>小结：{{summary}}</p>
+      </div>
+    </div>
+
+    <div class="ucard">
+      <div class="pcard-h">学生续写大纲</div>
+      <div class="pcard-b">{{#outline}}<p><span class="b">{{prompt}}：</span>{{line}}</p>
+{{/outline}}</div>
+    </div>
+
+    <div class="ucard">
+      <div class="pcard-h">点评</div>
+      <div class="pcard-b"><p>{{plot_review}}</p></div>
+    </div>
+
+    <h3 class="ss">衔接 &amp; 过渡分析</h3>
+    {{#cohesion}}<div class="coh">
+      <div class="chips" style="margin-bottom:4pt"><span class="chip blue">{{label}}</span></div>
+      {{#items}}<p class="coh-item">{{check}}：{{detail}} <span class="b">优化建议：</span>{{advice}}</p>
+      {{/items}}
+    </div>
+    {{/cohesion}}
+  </div>
+</section>
+
+<section class="tile tile-light">
+  <div class="in">
+    <h2 class="sh">出彩表达</h2>
+    <p class="hl-note">{{highlight_note}}</p>
+    {{#highlights}}<div class="hl-item">
+      <div class="hl-h">{{index}}. {{sentence}}</div>
+      {{#points}}<p class="hl-point"><span class="lbl">【{{label}}】</span><span class="txt">{{text}}</span></p>
+      {{/points}}
+    </div>
+    {{/highlights}}
+  </div>
+</section>
+
+<section class="tile tile-parchment">
+  <div class="in">
+    <h2 class="sh">个性化提升</h2>
+    <h3 class="ss" style="margin-top:0">细节描写提升</h3>
+    {{#improve_detail}}<div class="imp">
+      <div class="imp-no">{{index}}. {{category}}</div>
+      <p class="imp-row src"><span class="imp-lbl">【学生原文】</span>{{original}}</p>
+      <p class="imp-row up"><span class="imp-lbl">【内容提升】</span>{{upgraded}}</p>
+      <p class="imp-row tip"><span class="imp-lbl">【点拨】</span>{{note}}</p>
+    </div>
+    {{/improve_detail}}
+
+    <h3 class="ss">结尾句提升</h3>
+    <div class="imp">
+      <p class="imp-row src"><span class="imp-lbl">【学生原文】</span>{{ending_original}}</p>
+      <p class="imp-row up"><span class="imp-lbl">【内容提升】</span>{{ending_upgraded}}</p>
+      <p class="imp-row tip"><span class="imp-lbl">【点拨】</span>{{ending_note}}</p>
+    </div>
+
+    <h3 class="ss">更多表达</h3>
+    {{#improve_more}}<div class="imp">
+      <div class="imp-no">{{index}}.</div>
+      <p class="imp-row src"><span class="imp-lbl">【学生原文】</span>{{original}}</p>
+      <p class="imp-row up"><span class="imp-lbl">【内容提升】</span>{{upgraded}}</p>
+      <p class="imp-row tip"><span class="imp-lbl">【点拨】</span>{{note}}</p>
+    </div>
+    {{/improve_more}}
+  </div>
+</section>
+
+<section class="tile tile-light">
+  <div class="in">
+    <h2 class="sh">我的作文润色</h2>
+    <div class="dp"><div class="dp-lb">PARAGRAPH 1</div><p>{{polish_p1}}</p></div>
+    <div class="dp"><div class="dp-lb">PARAGRAPH 2</div><p>{{polish_p2}}</p></div>
+  </div>
+</section>
+
+<section class="tile tile-parchment">
+  <div class="in">
+    <h2 class="sh">学生佳句</h2>
+    <table class="grid quotes">{{#quotes}}<tr class="row"><td class="c1"><span class="who">{{name}}</span></td><td class="c2">{{sentence}}</td></tr>
+{{/quotes}}</table>
+
+    <h2 class="sh" style="margin-top:16pt">场景词汇</h2>
+    <table class="grid vocab">{{#vocab}}<tr class="row"><td class="c1">{{scene}}</td><td class="c2">{{words}}</td></tr>
+{{/vocab}}</table>
+  </div>
+</section>
+
+</body>
+</html>

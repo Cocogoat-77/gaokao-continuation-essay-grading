@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{{TITLE}}</title>
+<style>
+/* ===== 版式基准：A4 595x842pt，左右页边距 20pt，正文幼圆/Times 9pt ===== */
+@page { size: A4; margin: 40pt 20pt 40pt 20pt; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0; background: #FFFFFF; }
+body, .doc { font-family: "Times New Roman", "YouYuan", "幼圆", "SimSun", serif; font-size: 9pt; line-height: 1.3; color: #000000; }
+p { margin: 0 0 0 0; }
+.sec { margin: 16pt 0 9pt; display: flex; align-items: center; gap: 3pt; font-size: 9pt; color: #0F86FF; font-family: "YouYuan", "幼圆", serif; page-break-after: avoid; }
+.sec .ico { flex: none; display: block; }
+.sec .lbl { flex: none; }
+.sec .rule { flex: 1 1 auto; border-top: 1px dashed #0F86FF; height: 0; }
+.title { margin: 0 0 22pt; font-size: 20pt; line-height: 1.25; text-align: center; font-family: "YouYuan", "幼圆", serif; font-weight: 400; }
+.k { font-family: "YouYuan", "幼圆", serif; }
+.b { font-family: "YouYuan", "幼圆", serif; font-weight: 700; }
+.bk { color: #0F86FF; font-family: "YouYuan", "幼圆", serif; }
+.body-txt { margin: 0; text-align: justify; }
+.mt6 { margin-top: 6pt; }
+.mt10 { margin-top: 10pt; }
+
+/* ===== 问题标签：浅蓝底 + 右下 3pt 实蓝底板 ===== */
+.tags { margin: 6pt 0 2pt; }
+.tag { display: inline-block; position: relative; margin: 0 14pt 9pt 0; }
+.tag .plate { position: absolute; left: 3pt; top: 3pt; right: -3pt; bottom: -3pt; background: #0F86FF; border-radius: 2pt; }
+.tag .txt { position: relative; display: block; background: #DBEDFF; color: #1E1E1E; font-size: 10pt; padding: 4pt 9pt; border-radius: 2pt; font-family: "YouYuan", "幼圆", serif; }
+
+/* ===== 卷面点评：浅蓝长药丸 + 实蓝药丸标签 ===== */
+.face { margin: 4pt 0 8pt; display: flex; align-items: center; gap: 10pt; }
+.face-wrap { display: inline-flex; align-items: center; gap: 8pt; background: #DBEDFF; border-radius: 11pt; padding: 0 14pt 3pt 0; position: relative; }
+.face-pill { display: inline-block; background: #0F86FF; color: #FFFFFF; font-size: 9pt; border-radius: 11pt; padding: 4pt 12pt 4pt 12pt; margin: 3pt 0 0 3pt; font-family: "YouYuan", "幼圆", serif; }
+.face-grade { display: inline-block; font-size: 9pt; color: #1E1E1E; font-family: "YouYuan", "幼圆", serif; }
+
+/* ===== 修订标记 =====
+   <del> = 学生的错误原文：红字 + 0.6pt 红色删除线，**不加底纹**
+   <ins> = 紧跟其后的订正文本：**#CACACA 灰底** + 红字，无删除线
+   （与批改报告样本逐元素比对确认：灰底在订正文本上，不在错误原文上） */
+del { color: #FF0000; text-decoration: line-through; text-decoration-color: #FF0000; text-decoration-thickness: 0.6pt; background: transparent; }
+ins { background: #CACACA; color: #FF0000; text-decoration: none; }
+
+/* ===== 错误分析详情标题：实心星 + 加粗 ===== */
+.errtitle { margin: 13pt 0 8pt; display: flex; align-items: center; gap: 4pt; font-weight: 700; font-size: 9pt; font-family: "YouYuan", "幼圆", serif; }
+.err-item { margin-bottom: 8pt; page-break-inside: avoid; }
+.err-form { margin-bottom: 0; text-align: justify; }
+.err-note { text-align: justify; }
+
+/* ===== 居中引导标签 { xxx } ===== */
+.center-label { text-align: center; font-size: 10pt; margin: 10pt 0 9pt; font-family: "YouYuan", "幼圆", serif; }
+
+/* ===== 小标题卡：橙色图标方块 + 白底圆角卡 ===== */
+.card { display: flex; align-items: stretch; margin: 8pt 0 6pt; page-break-inside: avoid; }
+.card .ibox { flex: none; width: 17pt; background: #FDF0DC; border: 0.5pt solid #E8B463; border-right: none; border-radius: 6pt 0 0 6pt; display: flex; align-items: center; justify-content: center; }
+.card .cbody { flex: 1 1 auto; background: #FFFFFF; border: 0.5pt solid #E8B463; border-radius: 0 6pt 6pt 0; padding: 4pt 8pt; font-size: 9pt; font-family: "YouYuan", "幼圆", serif; }
+.card .ctxt { padding: 5pt 0 7pt; text-align: justify; }
+
+/* ===== 段落分析标签：浅蓝药丸 ===== */
+.pseg { display: inline-block; background: #DBEDFF; color: #1E1E1E; font-size: 9pt; border-radius: 9pt; padding: 2pt 12pt; margin: 9pt 0 6pt; font-family: "YouYuan", "幼圆", serif; }
+.coh-item { margin-bottom: 3pt; text-align: justify; }
+
+/* ===== 出彩表达：绿色横条 ===== */
+.green-bar { background: #0DBC51; color: #000000; font-size: 9pt; padding: 5pt 8pt; border-radius: 2pt; display: flex; align-items: flex-start; gap: 5pt; margin: 6pt 0 9pt; font-family: "YouYuan", "幼圆", serif; page-break-inside: avoid; }
+.hl-item { margin-bottom: 7pt; page-break-inside: avoid; }
+.hl-sent { text-align: justify; }
+.hl-point { text-align: justify; }
+
+/* ===== 个性化提升 ===== */
+.dot-h { display: flex; align-items: center; gap: 5pt; margin: 7pt 0 5pt; font-size: 9pt; font-family: "YouYuan", "幼圆", serif; }
+.dot-h .dot { flex: none; width: 5pt; height: 5pt; border-radius: 50%; background: #000000; }
+.imp-item { margin-bottom: 7pt; page-break-inside: avoid; }
+.imp-line { text-align: justify; }
+
+/* ===== 我的作文润色 ===== */
+.polish { text-align: justify; margin-bottom: 6pt; }
+
+/* ===== 学生佳句 / 场景词汇 表 ===== */
+table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 6pt 0 8pt; }
+table.grid td { vertical-align: top; padding: 6pt 10pt; }
+table.quotes td { background: #F8F9FA; height: 31pt; border-bottom: 0.6pt dashed #DCDCDC; }
+table.quotes td.c1 { width: 111pt; text-align: center; }
+table.quotes td.c2 { width: 444pt; text-align: left; }
+table.vocab td { border: 0.5pt solid #EB5415; height: 51pt; }
+table.vocab td.c1 { width: 111pt; text-align: center; }
+table.vocab td.c2 { width: 444pt; text-align: left; }
+
+/* ===== 分页控制 ===== */
+.pb { page-break-before: always; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<h1 class="title">{{TITLE}}</h1>
+
+<div class="sec"><svg class="ico" width="9" height="10" viewBox="0 0 9 10"><path d="M0.5 0.5h8v9l-4-2.8-4 2.8z" fill="#7B96C4"/></svg><span class="lbl">评语</span><span class="rule"></span></div>
+<p class="body-txt"><span class="b">【得分】</span>{{score}}</p>
+<p class="body-txt"><span class="b">【完成度】</span>{{completeness}}</p>
+<p class="body-txt"><span class="b">【情节内容】</span>{{plot_comment}}</p>
+<p class="body-txt"><span class="b">【词汇句式和语法】</span>{{language_comment}}</p>
+
+<div class="sec"><svg class="ico" width="9" height="10" viewBox="0 0 9 10"><path d="M0.5 0.5h8v9l-4-2.8-4 2.8z" fill="#7B96C4"/></svg><span class="lbl">本次作文我的问题</span><span class="rule"></span></div>
+<div class="tags">{{#tags}}<span class="tag"><span class="plate"></span><span class="txt">#{{.}}</span></span>{{/tags}}</div>
+
+<div class="face"><span class="face-wrap"><span class="face-pill">卷面点评</span><span class="face-grade">{{face_grade}}</span></span></div>
+<p class="body-txt">{{face_text}}</p>
+
+<div class="sec"><svg class="ico" width="9" height="10" viewBox="0 0 9 10"><path d="M0.5 0.5h8v9l-4-2.8-4 2.8z" fill="#7B96C4"/></svg><span class="lbl">逐句批改</span><span class="rule"></span></div>
+<p class="body-txt"><span class="b">Paragraph 1:</span> {{sr_p1}}</p>
+<p class="body-txt"><span class="b">Paragraph 2:</span> {{sr_p2}}</p>
+
+<div class="errtitle"><svg width="9" height="9" viewBox="0 0 10 10"><path d="M5 0l1.4 3.3L10 3.7 7.5 6l0.8 3.7L5 7.9 1.7 9.7 2.5 6 0 3.7 3.6 3.3z" fill="#000000"/></svg><span>错误分析详情</span></div>
+{{#errors}}<div class="err-item">
+<p class="err-form"><span class="b">【正确形式】</span>{{correct_html}}</p>
+{{#notes}}<p class="err-note"><span class="b">【{{type}}】</span>{{text}}</p>
+{{/notes}}</div>
+{{/errors}}
+
+<div class="sec"><svg class="ico" width="9" height="10" viewBox="0 0 9 10"><path d="M0.5 0.5h8v9l-4-2.8-4 2.8z" fill="#7B96C4"/></svg><span class="lbl">情节分析</span><span class="rule"></span></div>
+<div class="center-label">{ 原文情节线 }</div>
+<div class="card"><span class="ibox"><svg width="11" height="11" viewBox="0 0 12 12"><rect x="1" y="1.5" width="10" height="9" rx="1" fill="none" stroke="#B07414" stroke-width="1"/><path d="M4 1.5v9" stroke="#B07414" stroke-width="1"/></svg></span><span class="cbody">原文情节梳理</span></div>
+<p class="body-txt">{{source_summary}}</p>
+<div class="card"><span class="ibox"><svg width="11" height="11" viewBox="0 0 12 12"><rect x="1" y="1" width="4.2" height="4.2" rx="0.8" fill="none" stroke="#B07414" stroke-width="1"/><rect x="6.8" y="1" width="4.2" height="4.2" rx="0.8" fill="none" stroke="#B07414" stroke-width="1"/><rect x="1" y="6.8" width="4.2" height="4.2" rx="0.8" fill="none" stroke="#B07414" stroke-width="1"/><rect x="6.8" y="6.8" width="4.2" height="4.2" rx="0.8" fill="none" stroke="#B07414" stroke-width="1"/></svg></span><span class="cbody">续写情节推理</span></div>
+<p class="body-txt">关键思考过程：{{key_thought}}</p>
+<p class="body-txt">第一段：（{{p1_tag}}）：{{p1_plot}}</p>
+<p class="body-txt">第二段：（{{p2_tag}}）：{{p2_plot}}</p>
+<p class="body-txt">小结：{{summary}}</p>
+
+<div class="card"><span class="ibox"><svg width="11" height="11" viewBox="0 0 12 12"><rect x="2" y="1" width="8" height="10" rx="1" fill="none" stroke="#B07414" stroke-width="1"/><path d="M4 4h4M4 6.2h4M4 8.4h2.5" stroke="#B07414" stroke-width="1"/></svg></span><span class="cbody">学生续写大纲</span></div>
+{{#outline}}<p class="body-txt">{{prompt}}：</p>
+<p class="body-txt">{{line}}</p>
+{{/outline}}
+
+<div class="card"><span class="ibox"><svg width="11" height="11" viewBox="0 0 12 12"><path d="M1.5 2h9v6H6L3.5 10.5V8H1.5z" fill="none" stroke="#B07414" stroke-width="1"/></svg></span><span class="cbody">点评</span></div>
+<p class="body-txt">{{plot_review}}</p>
+
+<div class="center-label">{ 衔接&amp;过渡分析 }</div>
+{{#cohesion}}<div class="pseg">{{label}}</div>
+{{#items}}<p class="coh-item">{{check}}：{{detail}} <span class="b">优化建议：</span>{{advice}}</p>
+{{/items}}
+{{/cohesion}}
+
+<div class="sec"><svg class="ico" width="9" height="10" viewBox="0 0 9 10"><path d="M0.5 0.5h8v9l-4-2.8-4 2.8z" fill="#7B96C4"/></svg><span class="lbl">出彩表达</span><span class="rule"></span></div>
+<div class="green-bar"><svg width="11" height="12" viewBox="0 0 12 13" style="flex:none;margin-top:1pt"><path d="M1 6.5h2.2v6H1zM4.2 12.5V6.3L7 1.2c0.6 0 1.2 0.6 1.2 1.4v2.4h2.6c0.7 0 1.2 0.7 1 1.4l-1 4.6c-0.1 0.6-0.6 1-1.2 1z" fill="none" stroke="#000000" stroke-width="1"/></svg><span>{{highlight_note}}</span></div>
+{{#highlights}}<div class="hl-item">{{index}}.<span class="hl-sent">{{sentence}}</span>
+{{#points}}<p class="hl-point"><span class="bk">【{{label}}】</span>{{text}}</p>
+{{/points}}</div>
+{{/highlights}}
+
+<div class="sec"><svg class="ico" width="9" height="10" viewBox="0 0 9 10"><path d="M0.5 0.5h8v9l-4-2.8-4 2.8z" fill="#7B96C4"/></svg><span class="lbl">个性化提升</span><span class="rule"></span></div>
+<div class="dot-h"><span class="dot"></span><span>细节描写提升</span></div>
+{{#improve_detail}}<p class="imp-line">{{index}}. {{category}}</p>
+<p class="imp-line"><span class="bk">【学生原文】</span>{{original}}</p>
+<p class="imp-line"><span class="bk">【内容提升】</span>{{upgraded}}</p>
+<p class="imp-item"><span class="bk">【点拨】</span>{{note}}</p>
+{{/improve_detail}}
+<div class="dot-h"><span class="dot"></span><span>结尾句提升</span></div>
+<p class="imp-line"><span class="bk">【学生原文】</span>{{ending_original}}</p>
+<p class="imp-line"><span class="bk">【内容提升】</span>{{ending_upgraded}}</p>
+<p class="imp-item"><span class="bk">【点拨】</span>{{ending_note}}</p>
+<div class="dot-h"><span class="dot"></span><span>更多表达</span></div>
+{{#improve_more}}<p class="imp-line">{{index}}.<span class="bk">【学生原文】</span>{{original}}</p>
+<p class="imp-line"><span class="bk">【内容提升】</span>{{upgraded}}</p>
+<p class="imp-item"><span class="bk">【点拨】</span>{{note}}</p>
+{{/improve_more}}
+
+<div class="sec"><svg class="ico" width="9" height="10" viewBox="0 0 9 10"><path d="M0.5 0.5h8v9l-4-2.8-4 2.8z" fill="#7B96C4"/></svg><span class="lbl">我的作文润色</span><span class="rule"></span></div>
+<p class="polish"><span class="b">Paragraph 1:</span> {{polish_p1}}</p>
+<p class="polish"><span class="b">Paragraph 2:</span> {{polish_p2}}</p>
+
+<div class="sec"><svg class="ico" width="9" height="10" viewBox="0 0 9 10"><path d="M0.5 0.5h8v9l-4-2.8-4 2.8z" fill="#7B96C4"/></svg><span class="lbl">学生佳句</span><span class="rule"></span></div>
+<table class="grid quotes">{{#quotes}}<tr><td class="c1">{{name}}</td><td class="c2">{{sentence}}</td></tr>
+{{/quotes}}</table>
+
+<div class="sec"><svg class="ico" width="9" height="10" viewBox="0 0 9 10"><path d="M0.5 0.5h8v9l-4-2.8-4 2.8z" fill="#7B96C4"/></svg><span class="lbl">场景词汇</span><span class="rule"></span></div>
+<table class="grid vocab">{{#vocab}}<tr><td class="c1">{{scene}}</td><td class="c2">{{words}}</td></tr>
+{{/vocab}}</table>
+
+</div>
+</body>
+</html>
