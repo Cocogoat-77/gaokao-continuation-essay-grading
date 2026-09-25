@@ -1,6 +1,9 @@
 ---
 name: gaokao-continuation-essay-grading
-description: 高中英语读后续写作文自动批改与报告生成。输入学生手写答题卡（JPEG 扫描件）与原题材料，输出逐句批改、情节分析、出彩表达、个性化提升、润色稿等 11 个板块的个人报告（HTML + A4 PDF），并可批量处理整个班级、生成班级成绩台账。触发词：读后续写批改、作文自动批改、答题卡批改、英语作文报告、生成批改报告、批量批改作文。
+description: "高中英语读后续写作文自动批改与报告生成。输入学生手写答题卡（JPEG 扫描件）与原题材料，输出逐句批改、情节分析、出彩表达、个性化提升、润色稿等 11 个板块的个人报告（HTML + A4 PDF），并可批量处理整个班级、生成班级成绩台账。触发词：读后续写批改、作文自动批改、答题卡批改、英语作文报告、生成批改报告、批量批改作文。"
+description_en: "Grade handwritten Gaokao continuation-writing answer sheets and produce structured A4 PDF reports (11 sections: sentence-by-sentence correction, plot analysis, highlights, personalised upgrades, polished version) plus a class-wide score ledger. Use for continuation-writing grading, answer-sheet grading, batch essay grading, or generating English essay feedback reports."
+version: 1.0.0
+author: Cocogoat-77
 agent_created: true
 ---
 

@@ -1,5 +1,7 @@
 # 高中英语读后续写 · 自动批改 Skill
 
+**v1.0.0**（2026-09-26 首次发布） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
+
 把学生**手写**的读后续写答题卡（扫描件）批量转成结构化批改报告（HTML + A4 PDF）；批整班时还会顺带生成一份班级成绩台账。
 
 这是一个 [WorkBuddy](https://www.workbuddy.cn) Skill，也可以只把它当作一套 **JSON → HTML/PDF 报告渲染管线**单独使用——`scripts/render.py` 不依赖 WorkBuddy，喂给它一份符合契约的 JSON 就能出报告。
@@ -95,7 +97,8 @@ python scripts/render.py --list-themes
 ```
 gaokao-continuation-essay-grading/
 ├── SKILL.md                        Skill 主文件：工作流、硬约束、质量闸门
-├── LICENSE
+├── LICENSE                         GPL-3.0 许可证全文
+├── CHANGELOG.md                    版本变更记录
 ├── README.md
 ├── assets/
 │   ├── report-template.html        原版 A4 报告模板（默认皮肤）
@@ -145,15 +148,36 @@ python scripts/pack_for_upload.py --dry-run  # 只打印清单，不拷文件
 > 1. `.gitignore` 只对 `git` 命令生效（`git add` / `git status` / GitHub Desktop 也遵守），**对网页端拖拽上传无效**。
 > 2. **删掉文件删不掉 Git 历史。** 一旦学生信息被推上去过，事后删文件没用，只能重写历史或删库重建。所以宁可在上传前拦住。
 
+## 版权与许可
+
+```
+Copyright (C) 2026 Cocogoat-77
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, version 3 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+```
+
+本项目按 **[GNU 通用公共许可证第 3 版（GPL-3.0）](LICENSE)** 授权 —— 许可证全文见 `LICENSE`。
+
+简单说：你可以自由使用、修改、再发布；但**如果你发布了自己改过的版本，那个版本也必须以 GPL-3.0 开源**（这就是 copyleft，也是它和 MIT 最大的区别 —— MIT 允许别人拿去闭源）。
+
+> 本项目作者：**Cocogoat-77**（<https://github.com/Cocogoat-77>）
+
 ## 版式来源说明
 
 本项目的**报告版式与部分固定措辞，参考并复刻自一份批改报告样本**（板块结构、配色、字号、行距等版式参数系对该样本逐元素测量而来；少量固定话术如「完成度」评语、「出彩表达」心得语、问题标签名与衔接检查项表述，与该样本一致）。
 
-- 这部分内容的权利**不归属于本项目作者**，也**不在 MIT 许可的授权范围内**。
+- 这部分内容的权利**不归属于本项目作者**，也**不在本项目的 GPL-3.0 授权范围内**（GPL 只能授权作者本人拥有权利的部分）。
 - 本项目将其用于**教学场景下的格式还原**，作者无意主张对上述内容的任何权利。
 - 如需将本项目用于商业用途，请自行评估相关权利风险。
 
-除此之外的脚本、模板与文档均为本项目作者原创，按 [MIT 许可](LICENSE) 授权。
+除此之外的脚本、模板与文档均为本项目作者原创，按 [GPL-3.0](LICENSE) 授权。
 
 ## 高考评分标准说明
 
