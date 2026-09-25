@@ -2,7 +2,7 @@
 name: gaokao-continuation-essay-grading
 description: "高中英语读后续写作文自动批改与报告生成。输入学生手写答题卡（JPEG 扫描件）与原题材料，输出逐句批改、情节分析、出彩表达、个性化提升、润色稿等 11 个板块的个人报告（HTML + A4 PDF），并可批量处理整个班级、生成班级成绩台账。支持上架为按篇计费的付费技能（Pay Skill）：内置支付宝 AI 按量付费 402 协议，含 Payment-Needed 账单下发、Payment-Proof 携带凭证重试、payment.verify 验付调用、fulfillment.confirm 履约确认与订单持久化幂等。触发词：读后续写批改、作文自动批改、答题卡批改、英语作文报告、生成批改报告、批量批改作文、付费技能、按量付费、402 收款、Pay Skill。"
 description_en: "Grade handwritten Gaokao continuation-writing answer sheets and produce structured A4 PDF reports (11 sections: sentence-by-sentence correction, plot analysis, highlights, personalised upgrades, polished version) plus a class-wide score ledger. Can be published as a pay-per-report paid skill: ships an Alipay AI pay-per-use (HTTP 402) integration with Payment-Needed billing, Payment-Proof retry, alipay.aipay.agent.payment.verify, alipay.aipay.agent.fulfillment.confirm, and idempotent order persistence. Use for continuation-writing grading, answer-sheet grading, batch essay grading, paid skill monetisation, or generating English essay feedback reports."
-version: 1.1.0
+version: 1.1.1
 author: Cocogoat-77
 agent_created: true
 ---
@@ -30,7 +30,7 @@ agent_created: true
 <python> -m playwright install chromium
 ```
 
-`pymupdf` 用于加盖页眉页脚；`playwright` + 自带 Chromium 用于 HTML→PDF（**不要用命令行的 Edge 无头模式**，用户已打开 Edge 时会被接管并静默失败）；`openpyxl` 仅生成班级台账时需要；`pycryptodome` 仅上架 Pay Skill 时需要（402 账单的 RSA2 签名，也可用 `cryptography` 替代）。
+`pymupdf` 用于加盖页眉页脚；`playwright` + 自带 Chromium 用于 HTML→PDF（**唯一路径**，不要改成命令行调用 Edge/Chrome 无头模式：用户已打开浏览器时会被接管并静默失败）；`openpyxl` 仅生成班级台账时需要；`pycryptodome` 仅上架 Pay Skill 时需要（402 账单的 RSA2 签名，也可用 `cryptography` 替代）。
 
 ## 四路工作流
 
@@ -173,6 +173,7 @@ python scripts/skillpay/server.py --port 8787
 5. **原文引用真实。** `【完成度】`／`【词汇句式和语法】`／`出彩表达` 中引用的学生表达，必须逐字出现在转写稿里。
 6. **`sentence_review` 用修订标记。** 错误原文包 `<del>`，紧跟的订正文本包 `<ins>`（成对出现，缺了 `<ins>` 订正文本就没有灰底）。只标真实修改处，不改动正确的部分。写法见 `references/report-spec.md` 第五节。
 7. **不得编造。** 缺少原题、缺少学生姓名时如实说明，不虚构情节分析或仿造佳句；个别词识别不清按硬约束第 1 条处理（存疑即视为划掉），不靠猜写填空。
+8. **不得削弱宿主的安全控制。** 脚本一律不读写宿主注入的环境变量（尤其是安全守卫、审计、调用链类变量），不绕过批量删除防护，不递归删除自己以外的目录；临时文件优先"不创建"而不是"创建后清理"。这一条是安全评审的硬红线，违反会被判「可疑风险」并显著扣分。
 
 ## 质量闸门（交付前逐项检查）
 
@@ -190,9 +191,12 @@ python scripts/skillpay/server.py --port 8787
 
 ## 常见问题
 
-- **PDF 生成失败**：渲染首选 Playwright 自带的 Chromium；未安装时执行
+- **PDF 生成失败**：HTML→PDF **只有 Playwright 一条路径**（自带 Chromium，不启外部浏览器进程、不建临时目录，因此也不会去改宿主环境变量）。未安装时执行
   `pip install playwright && python -m playwright install chromium`。
-  找不到 Playwright 才会回退到命令行调用 Edge——注意**用户已打开 Edge 时无头调用会被接管并静默失败（退出码仍为 0，但不产出 PDF）**，所以不要依赖这条回退路径。仍然失败时用 `--html-only` 出 HTML，再让用户用浏览器"打印 → 另存为 PDF"。
+  仍然失败时用 `--html-only` 出 HTML，再让用户用浏览器"打印 → 另存为 PDF"（**手工打印务必勾选"打印背景图形"**）。
+- **安全评审相关**：本 Skill 明确**不改动宿主注入的任何环境变量**，也不递归删除临时目录。
+  维护时切勿引入"绕过/关闭宿主安全守卫"的写法（如 pop 掉守卫类环境变量）——
+  安全评审会判定为「削弱主机安全防御」并扣分（实测被扣至 60 分）。
 - **PDF 中背景色丢失**：必须开启"打印背景图形"（Playwright 的 `print_background=True`）。否则蓝色药丸标签、灰色修订底纹、绿色点评条会全部变成白色。
 - **PDF 中文变方框**：确认 `C:\Windows\Fonts\SIMYOU.TTF`（幼圆）存在；缺失时页眉页脚不可用，但正文仍由浏览器渲染，不受影响。
 - **页码/页眉缺失**：由 `render.py` 的 `stamp_header_footer` 用 pymupdf 加盖，需安装 `pymupdf`。

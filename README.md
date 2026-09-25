@@ -1,6 +1,6 @@
 # 高中英语读后续写 · 自动批改 Skill
 
-**v1.1.0**（2026-09-26） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
+**v1.1.1**（2026-09-26） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
 
 把学生**手写**的读后续写答题卡（扫描件）批量转成结构化批改报告（HTML + A4 PDF）；批整班时还会顺带生成一份班级成绩台账。
 

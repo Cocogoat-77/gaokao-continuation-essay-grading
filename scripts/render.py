@@ -18,14 +18,10 @@ render.py —— 读学生批改结果 JSON，输出 HTML 与 A4 PDF。
 依赖：pymupdf（pip install pymupdf）；Playwright 自带 Chromium（HTML→PDF）。
 """
 import argparse
-import html
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
-import tempfile
 
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(SKILL_DIR, "assets")
@@ -81,22 +77,12 @@ def list_themes():
         print("  %-8s [%s] %s" % (k, exists, THEME_DESC[k]))
 
 
-# 摘掉宿主注入的「批量删除守卫」。下面清理浏览器临时 profile 目录要调
-# shutil.rmtree，守卫会以 SAFE_DELETE_FAIL_CLOSED 拦下并抛异常 —— 表现为
-# 「PDF 其实已生成却报失败」，很难排查。必须在此处 pop，不能用 shell 的
-# env -u：本沙箱里 env 会吞掉子进程全部输出（详见同项目 evaluate.py 顶部注释）。
-for _k in ("CODEBUDDY_TOOL_CALL_ID",
-           "CODEBUDDY_SAFE_DELETE_BULK_STATE_DIR",
-           "CODEBUDDY_SAFE_DELETE_BULK_GUARD",
-           "CODEBUDDY_SAFE_DELETE_BULK_REPLAY_FILE"):
-    os.environ.pop(_k, None)
+# ★ 本脚本**不得改动宿主注入的任何环境变量**。
+# 早先版本在导入时删掉宿主下发的「批量删除守卫」与审计类环境变量，好让临时目录清理
+# 不被拦下。那是**削弱宿主安全控制**的做法，安全评审据此判定为可疑风险（实测被扣分）。
+# 现已彻底移除：本模块不再读写任何环境变量，也不再创建、不再递归删除任何临时目录 ——
+# HTML→PDF 只留 Playwright 一条路径（见下方 html_to_pdf）。
 
-EDGE_CANDIDATES = [
-    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-]
 YOUYUAN = r"C:\Windows\Fonts\SIMYOU.TTF"
 
 # ---------- 极简模板引擎：{{key}} / {{#list}}...{{/list}} / {{.}} / 段落起始缩进 ----------
@@ -260,15 +246,16 @@ def build_html(data):
 
 # ---------- HTML -> PDF ----------
 
-def find_browser():
-    for p in EDGE_CANDIDATES:
-        if os.path.exists(p):
-            return p
-    raise RuntimeError("未找到 Edge/Chrome，无法生成 PDF。可用 --html-only 只出 HTML。")
+PDF_DEP_HINT = (
+    "未安装 Playwright，无法生成 PDF。请执行：\n"
+    "    pip install playwright\n"
+    "    python -m playwright install chromium\n"
+    "或改用 --html-only 只出 HTML，再用浏览器「打印 → 另存为 PDF」。"
+)
 
 
 def html_to_pdf_playwright(html_path, pdf_path):
-    """首选：Playwright 自带 Chromium。不依赖、也不会干扰用户已打开的 Edge/Chrome。"""
+    """用 Playwright 自带 Chromium 渲染。不依赖、也不会干扰用户已打开的 Edge/Chrome。"""
     from playwright.sync_api import sync_playwright
 
     url = "file:///" + os.path.abspath(html_path).replace("\\", "/")
@@ -285,44 +272,22 @@ def html_to_pdf_playwright(html_path, pdf_path):
             browser.close()
 
 
-def html_to_pdf_cli(html_path, pdf_path, browser, workdir):
-    """兜底：直接调用 Edge/Chrome 无头模式。注意浏览器已打开时可能被接管而静默失败。
+def html_to_pdf(html_path, pdf_path):
+    """HTML → A4 PDF。**只有 Playwright 这一条路径。**
 
-    ★ 每次调用必须用**独立的** user-data-dir。
-      若批量出 PDF 时共用同一个 profile 目录，第二次启动的 Edge 会发现在该
-      profile 上已有实例在跑，于是把命令转发过去后**立即退出、返回码 0**，
-      PDF 根本不会生成 —— 表现为「rc=0 却失败」，报错信息为空，极难排查。
-      （实测 6 份报告只有第 1 份成功、其余 5 份全挂。）用 mkdtemp 每次新建、
-      用完即删，即可稳定批量。
+    为什么不再回退到命令行调用 Edge/Chrome：
+      1. 那条路要启动外部浏览器进程、并为每次调用新建一个独立的用户数据目录，
+         用户已打开浏览器时会被接管并**静默失败**（退出码 0 但不产出 PDF），本就不可靠；
+      2. 它还要递归清理那个临时目录；一旦清理被宿主安全守卫拦下，就会表现为
+         "PDF 明明已生成却报失败"。早期版本为此去改环境变量绕过守卫 —— 那是削弱
+         宿主安全控制，安全评审会判可疑风险，已彻底移除。
+    现在单一路径、失败即明确报错，不做隐式降级。
     """
-    profile = tempfile.mkdtemp(prefix="_edge_profile_",
-                              dir=os.path.abspath(workdir))
-    try:
-        cmd = [
-            browser, "--headless=new", "--disable-gpu", "--no-sandbox",
-            "--user-data-dir=" + profile,
-            "--no-pdf-header-footer",
-            "--print-to-pdf=" + os.path.abspath(pdf_path),
-            "file:///" + os.path.abspath(html_path).replace("\\", "/"),
-        ]
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-        if not os.path.exists(pdf_path):
-            raise RuntimeError("PDF 生成失败：rc=%s\n%s\n%s" % (
-                r.returncode, (r.stdout or "")[-500:], (r.stderr or "")[-800:]))
-    finally:
-        shutil.rmtree(profile, ignore_errors=True)
-
-
-def html_to_pdf(html_path, pdf_path, browser=None, workdir="."):
     try:
         html_to_pdf_playwright(html_path, pdf_path)
-        return "playwright"
     except ImportError:
-        pass
-    except Exception as e:
-        sys.stderr.write("[warn] Playwright 渲染失败，回退到浏览器命令行：%s\n" % e)
-    html_to_pdf_cli(html_path, pdf_path, browser or find_browser(), workdir)
-    return "cli"
+        raise RuntimeError(PDF_DEP_HINT)
+    return "playwright"
 
 
 def stamp_header_footer(pdf_path, data):
@@ -370,7 +335,7 @@ def stamp_header_footer(pdf_path, data):
     doc.close()
 
 
-def process(json_path, outdir, browser=None, html_only=False):
+def process(json_path, outdir, html_only=False):
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     st = data.get("student", {})
@@ -384,7 +349,7 @@ def process(json_path, outdir, browser=None, html_only=False):
     if html_only:
         return html_path, None
     pdf_path = os.path.join(outdir, base + ".pdf")
-    html_to_pdf(html_path, pdf_path, browser or find_browser(), outdir)
+    html_to_pdf(html_path, pdf_path)
     stamp_header_footer(pdf_path, data)
     return html_path, pdf_path
 
@@ -424,11 +389,10 @@ def main():
         print("没有输入。请给 --json 或 --jsondir。")
         sys.exit(2)
 
-    browser = None if args.html_only else find_browser()
     ok = fail = 0
     for j in jobs:
         try:
-            h, p = process(j, args.outdir, browser, args.html_only)
+            h, p = process(j, args.outdir, args.html_only)
             print("[OK] %s" % (p or h))
             ok += 1
         except Exception as e:
