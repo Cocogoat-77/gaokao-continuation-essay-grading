@@ -1,6 +1,6 @@
 # 高中英语读后续写 · 自动批改 Skill
 
-**v1.2.0**（2026-09-27） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
+**v1.2.0**（2026-09-27） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE.md) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
 
 **已上架 SkillHub**：<https://skillhub.cn/skills/indiv-cocogoat/gaokao-continuation-essay-grading> ｜ 使用教程：<https://skillhub.cn/tutorials>
 
@@ -101,7 +101,7 @@ python scripts/render.py --list-themes
 ```
 gaokao-continuation-essay-grading/
 ├── SKILL.md                        Skill 主文件：工作流、硬约束、质量闸门
-├── LICENSE                         GPL-3.0 许可证全文
+├── LICENSE.md                         GPL-3.0 许可证全文
 ├── CHANGELOG.md                    版本变更记录
 ├── README.md
 ├── assets/
@@ -167,7 +167,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 ```
 
-本项目按 **[GNU 通用公共许可证第 3 版（GPL-3.0）](LICENSE)** 授权 —— 许可证全文见 `LICENSE`。
+本项目按 **[GNU 通用公共许可证第 3 版（GPL-3.0）](LICENSE.md)** 授权 —— 许可证全文见 `LICENSE.md`。
 
 简单说：你可以自由使用、修改、再发布；但**如果你发布了自己改过的版本，那个版本也必须以 GPL-3.0 开源**（这就是 copyleft，也是它和 MIT 最大的区别 —— MIT 允许别人拿去闭源）。
 
@@ -181,7 +181,7 @@ GNU General Public License for more details.
 - 本项目将其用于**教学场景下的格式还原**，作者无意主张对上述内容的任何权利。
 - 如需将本项目用于商业用途，请自行评估相关权利风险。
 
-除此之外的脚本、模板与文档均为本项目作者原创，按 [GPL-3.0](LICENSE) 授权。
+除此之外的脚本、模板与文档均为本项目作者原创，按 [GPL-3.0](LICENSE.md) 授权。
 
 ## 高考评分标准说明
 
@@ -193,4 +193,4 @@ GNU General Public License for more details.
 - **数据来源**：判定阈值与校准锚点来自作者对本班实际批改结果的统计；报告结构参考自一份批改报告样本（见上「版式来源说明」）。
 - **致使用者**：感谢每一位使用、反馈并改进这个 Skill 的老师。
 
-> 注：AI 助手不持有本项目著作权，也不在 [GPL-3.0](LICENSE) 的授权方之列 —— 版权归作者所有（见上「版权与许可」）。此处仅作开发过程的如实说明。
+> 注：AI 助手不持有本项目著作权，也不在 [GPL-3.0](LICENSE.md) 的授权方之列 —— 版权归作者所有（见上「版权与许可」）。此处仅作开发过程的如实说明。
