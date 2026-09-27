@@ -23,6 +23,8 @@
 
 ### 说明
 
+- SKILL.md frontmatter 补齐 SkillHub 发布所需字段（`slug` / `displayName` / `summary` / `license` /
+  `homepage` / `tags`），并在 README 标注 SkillHub 上架地址与使用教程。
 - `--theme default` 写法自本版本起不再有效：取 `apple`（默认）或 `classic`（原版样本版式），
   `python scripts/render.py --list-themes` 可列出全部。
 - 仓库新增 `dist/`，附上对外分发包 zip（含安装说明），可直接下载转发。

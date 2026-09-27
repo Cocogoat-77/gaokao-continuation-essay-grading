@@ -2,7 +2,11 @@
 
 **v1.2.0**（2026-09-27） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
 
+**已上架 SkillHub**：<https://skillhub.cn/skills/indiv-cocogoat/gaokao-continuation-essay-grading> ｜ 使用教程：<https://skillhub.cn/tutorials>
+
 把学生**手写**的读后续写答题卡（扫描件）批量转成结构化批改报告（HTML + A4 PDF）；批整班时还会顺带生成一份班级成绩台账。
+
+本 Skill 已上架 [SkillHub](https://skillhub.cn)（AI Skills 市场）；安装与使用教程见 <https://skillhub.cn/tutorials>。
 
 这是一个 [WorkBuddy](https://www.workbuddy.cn) Skill，也可以只把它当作一套 **JSON → HTML/PDF 报告渲染管线**单独使用——`scripts/render.py` 不依赖 WorkBuddy，喂给它一份符合契约的 JSON 就能出报告。
 
