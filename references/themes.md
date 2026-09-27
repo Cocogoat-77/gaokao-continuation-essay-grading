@@ -6,17 +6,17 @@
 
 ```bash
 python scripts/render.py --list-themes                                  # 先看有哪些
-python scripts/render.py --jsondir ./final --outdir ./out               # 默认：原版
-python scripts/render.py --jsondir ./final --outdir ./out --theme apple # 换 Apple 版
+python scripts/render.py --jsondir ./final --outdir ./out               # 默认：Apple 版
+python scripts/render.py --jsondir ./final --outdir ./out --theme classic # 换原版（复刻批改报告样本）
 ```
 
 | `--theme` | 名称 | 版式特征 | 什么时候用 |
 |---|---|---|---|
-| `default` | **原版** | 逐元素复刻批改报告样本的版式与配色 | **默认**。要对齐批改报告样本、要交给家长／教务看"和样本一致" |
-| `apple` | **Apple 风格** | 纯白纸 + 灰色圆角卡片 + 描边胶囊标题，**零暗底** | **要打印的时候选它**（见第四节） |
+| `apple` | **Apple 风格** | 纯白纸 + 灰色圆角卡片 + 描边胶囊标题，**零暗底** | **默认**。日常批改、要打印的时候用它（见第四节） |
+| `classic` | **原版** | 逐元素复刻批改报告样本的版式与配色 | 要对齐批改报告样本、要交给家长／教务看"和样本一致" |
 
 > 皮肤只影响**长相**，不影响**判定**。不管选哪套，`rubric.md` 的评分口径、`tag-library.md` 的标签集合、`report-spec.md` 的板块顺序都必须照办。
-> 用户没指定皮肤时用 `default`。
+> 用户没指定皮肤时用 `apple`。
 
 ## 二、修订标记的两种口径（`--marks`）
 
@@ -31,12 +31,12 @@ python scripts/render.py --jsondir ./final --outdir ./out --theme apple # 换 Ap
 
 | 皮肤 | `<del>` 错误原文 | `<ins>` 订正文本 | 为什么 |
 |---|---|---|---|
-| `default` | `#FF0000` + 红删除线 | `#CACACA` 灰底 + `#FF0000` 红字 | 就是样本报告的原样 |
+| `classic` | `#FF0000` + 红删除线 | `#CACACA` 灰底 + `#FF0000` 红字 | 就是样本报告的原样 |
 | `apple` | `#d70015` + 红删除线 | Action Blue `#0066cc` 加粗 | Apple 调色板无红；强调色留给"该点的东西" |
 
-> 需要"Apple 版式 + 规格内标记配色"时，加 `--marks strict`：
+> 需要"Apple 版式 + 规格内标记配色"时，加 `--marks strict`（Apple 版已是默认，无需再指定 `--theme`）：
 > ```bash
-> python scripts/render.py --jsondir ./final --outdir ./out --theme apple --marks strict
+> python scripts/render.py --jsondir ./final --outdir ./out --marks strict
 > ```
 > 它会在模板的 `</style>` 前追加一段 `!important` 覆盖，把 `del`/`ins` 拉回 `report-spec.md` 的 `#CACACA` 灰底 + 红字。
 
@@ -52,7 +52,7 @@ python scripts/render.py --jsondir ./final --outdir ./out --theme apple # 换 Ap
 
 ## 四、各皮肤规范
 
-### 4.1 `default` 原版
+### 4.1 `classic` 原版
 
 **唯一权威是 `references/report-spec.md`**，本文档不重复。核心配色：
 

@@ -1,6 +1,6 @@
 # 高中英语读后续写 · 自动批改 Skill
 
-**v1.1.1**（2026-09-26） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
+**v1.2.0**（2026-09-27） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
 
 把学生**手写**的读后续写答题卡（扫描件）批量转成结构化批改报告（HTML + A4 PDF）；批整班时还会顺带生成一份班级成绩台账。
 
@@ -41,8 +41,6 @@ C:\Users\<你的用户名>\.workbuddy\skills\
 ```bash
 python -m pip install pymupdf playwright openpyxl
 python -m playwright install chromium
-# 只有要上架为付费技能（Pay Skill）时才需要：
-python -m pip install pycryptodome
 ```
 
 Chromium 下载慢的话先换镜像：
@@ -76,8 +74,8 @@ python scripts/render.py --json results/<学号>_<姓名>.json --outdir ./out
 python scripts/render.py --jsondir ./results --outdir ./out
 # 只要 HTML，不转 PDF
 python scripts/render.py --jsondir ./results --outdir ./out --html-only
-# 换版式：默认是原版（1:1 复刻批改报告样本），打印用 apple
-python scripts/render.py --jsondir ./results --outdir ./out --theme apple
+# 换版式：默认是 Apple 版（零暗底，打印友好），1:1 复刻批改报告样本的原版用 classic
+python scripts/render.py --jsondir ./results --outdir ./out --theme classic
 python scripts/render.py --list-themes
 ```
 
@@ -88,43 +86,11 @@ python scripts/render.py --list-themes
 
 | `--theme` | 说明 |
 |---|---|
-| `default` | **原版**（默认）—— 逐元素复刻批改报告样本的版式与配色 |
-| `apple` | **Apple 风格** —— 纯白纸 + 灰色圆角卡片 + 只描边的胶囊标题，零暗底。**要打印选它**，不费墨、不糊字 |
+| `apple` | **Apple 风格**（默认）—— 纯白纸 + 灰色圆角卡片 + 只描边的胶囊标题，零暗底。省墨、不糊字 |
+| `classic` | **原版** —— 逐元素复刻批改报告样本的版式与配色 |
 
 两套共用同一份 JSON、同一套占位符契约，换皮肤只是换 CSS，不影响内容与判定。
 `--marks strict` 可把修订标记强制拉回 `#CACACA` 灰底 + 红字的规格口径（默认跟随皮肤配色）。
-
-## 上架为付费技能（Pay Skill）
-
-本 Skill 可以上架 SkillHub 作为**按报告篇数计费**的付费技能（默认 `0.01` 元/篇），
-付费链路基于支付宝 **AI 按量付费（HTTP 402 协议）**，四步编排 `probe → pay → complete → ack`：
-
-| 步骤 | 做什么 |
-|---|---|
-| **probe** | 请求资源；未付款时服务端返回 **HTTP 402** + **`Payment-Needed`** 账单头（Base64URL，含 RSA2 商家签名），并把订单落库 |
-| **pay** | 把账单交给支付宝官方支付能力拉起收银台，用户本人付款（Agent 只编排，不代付） |
-| **complete** | 付款后携带 **`Payment-Proof`** 重试原请求；服务端调 `alipay.aipay.agent.payment.verify` 验付，通过后幂等履约 |
-| **ack** | 交付后调 `alipay.aipay.agent.fulfillment.confirm` 确认履约；失败可重试且保持幂等 |
-
-```bash
-# 离线跑通整条链路（生成密钥 + mock 网关，不需要商户资质、不联网）
-python scripts/skillpay/selftest.py
-
-# 看价格 / 请求资源（未付款输出 402 账单）/ 携带凭证重试
-python scripts/skillpay/cli.py pay-info
-python scripts/skillpay/cli.py probe --jsondir ./final --outdir ./out
-python scripts/skillpay/cli.py complete --payment-proof "<Base64URL>" --jsondir ./final --outdir ./out
-
-# 本地 HTTP 服务：返回真实的 402 状态码与 Payment-Needed / Payment-Validation 响应头
-python scripts/skillpay/server.py --port 8787
-```
-
-计费口径、协议字段、五项必做控制（402 账单下发 / 携带凭证重试 / 验付调用 / 履约确认 /
-订单持久化与幂等）、配置环境变量、上线前核对清单，全部见
-[`references/skillpay.md`](references/skillpay.md)。
-
-> **安全提醒**：商家应用私钥只从环境变量或本地 `skillpay.local.json` 读取，
-> **不要提交到仓库**（`.gitignore` 已排除 `skillpay.local.json`、`state/`、`*.pem`）。
 
 ## 目录结构
 
@@ -135,30 +101,19 @@ gaokao-continuation-essay-grading/
 ├── CHANGELOG.md                    版本变更记录
 ├── README.md
 ├── assets/
-│   ├── report-template.html        原版 A4 报告模板（默认皮肤）
+│   ├── report-template.html        原版 A4 报告模板（--theme classic）
 │   └── themes/
-│       └── report-template-apple.html   Apple 风格模板（打印版）
+│       └── report-template-apple.html   Apple 风格模板（默认皮肤）
 ├── references/
 │   ├── report-spec.md              版式 + 配色 + 数据契约（原版的唯一权威规格）
 │   ├── themes.md                   两套皮肤的设计规范、修订标记口径、模板占位符契约
-│   ├── skillpay.md                 支付宝 AI 按量付费（402 协议）接入规范
 │   ├── rubric.md                   25 分制档位与校准锚点、固定句式
 │   └── tag-library.md              问题标签库 / 错误类型库 / 衔接检查用语
 └── scripts/
     ├── manifest.py                 按学号配对答题卡与已有报告，生成作业清单
     ├── aggregate.py                按班级聚合佳句与场景词汇，生成成绩台账
     ├── render.py                   JSON → HTML → A4 PDF（--theme 选皮肤）
-    ├── pack_for_upload.py          白名单打包，供手动上传 GitHub（见「数据与隐私」）
-    └── skillpay/                   付费改造（Pay Skill）
-        ├── config.py               配置与沙箱/生产切换
-        ├── store.py                订单持久化与幂等（SQLite）
-        ├── bill.py                 402 账单下发（Payment-Needed + RSA2 签名）
-        ├── proof.py                Payment-Proof 解析
-        ├── gateway.py              payment.verify / fulfillment.confirm 调用
-        ├── service.py              probe / pay / complete / ack 编排
-        ├── server.py               本地 HTTP 服务（真实 402 状态码）
-        ├── cli.py                  命令行入口
-        └── selftest.py             离线自测（生成密钥 + mock 网关）
+    └── pack_for_upload.py          白名单打包，供手动上传 GitHub（见「数据与隐私」）
 ```
 
 ## 设计要点
@@ -166,11 +121,11 @@ gaokao-continuation-essay-grading/
 - **不绑定任何具体题目。** 原题前文、两段首句、情节梳理、场景词汇全部来自当次 `assignment.json` 与该生实际作文。换一道题就换一份 `assignment.json`，Skill 本体不动。
 - **手写转写忠于原样。** 学生写错的拼写、时态、搭配一律照抄，不自动改正；学生自己划掉/涂改的词一律不转写、不计词数、不算错误——判划改只看一次，拿不准就按划掉处理，不反复纠缠。
 - **班级级内容按班聚合。** `学生佳句` 与 `场景词汇` 同班共享、跨班不同，绝不跨班取材；佳句取全班前 N 句，允许出现学生本人的句子。
-- **版式可替换。** 报告内容与版式解耦：模板只认一套占位符契约，换成另一套皮肤不影响任何正文与判定。打印场景建议用 `--theme apple`（零暗底）。
+- **版式可替换。** 报告内容与版式解耦：模板只认一套占位符契约，换成另一套皮肤不影响任何正文与判定。默认是 Apple 版（零暗底），要 1:1 复刻批改报告样本时用 `--theme classic`。
 
 ## 数据与隐私
 
-**本仓库不含任何学生数据。** 只有纯文本文件（Skill 文档 + 2 份 HTML 模板 + 4 个 Python 脚本）。
+**本仓库不含任何学生数据。** 只有纯文本文件与 Python 脚本。
 
 ### 用手动上传（网页端 Add file → Upload files）
 

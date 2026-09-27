@@ -42,14 +42,12 @@ def _load_render():
 def default_deliver(payload, order):
     """付费交付物 = 该次调用要渲染的批改报告。
 
-    payload 形如 {'json': 路径} 或 {'jsondir': 目录, 'outdir': 目录, 'theme': 'default'}。
+    payload 形如 {'json': 路径} 或 {'jsondir': 目录, 'outdir': 目录, 'theme': 'apple'}。
     **注意**：本函数在 SQLite 写事务内被调用，只能做文件生成，
     不得再去访问订单库（会造成同库写锁自锁）。
     """
     payload = payload or {}
     outdir = payload.get("outdir") or os.path.join(os.getcwd(), "out")
-    theme = payload.get("theme") or "default"
-    marks = payload.get("marks") or "theme"
 
     targets = []
     if payload.get("json"):
@@ -70,6 +68,9 @@ def default_deliver(payload, order):
         }
 
     render = _load_render()
+    # 默认版式跟 render.DEFAULT_THEME 走（v1.2.0 起为 apple）
+    theme = payload.get("theme") or getattr(render, "DEFAULT_THEME", "apple")
+    marks = payload.get("marks") or "theme"
     render.use_theme(theme)
     render.use_marks(marks)
 

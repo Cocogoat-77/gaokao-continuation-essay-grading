@@ -2,7 +2,7 @@
 name: gaokao-continuation-essay-grading
 description: "高中英语读后续写作文自动批改与报告生成。输入学生手写答题卡（JPEG 扫描件）与原题材料，输出逐句批改、情节分析、出彩表达、个性化提升、润色稿等 11 个板块的个人报告（HTML + A4 PDF），并可批量处理整个班级、生成班级成绩台账。支持上架为按篇计费的付费技能（Pay Skill）：内置支付宝 AI 按量付费 402 协议，含 Payment-Needed 账单下发、Payment-Proof 携带凭证重试、payment.verify 验付调用、fulfillment.confirm 履约确认与订单持久化幂等。触发词：读后续写批改、作文自动批改、答题卡批改、英语作文报告、生成批改报告、批量批改作文、付费技能、按量付费、402 收款、Pay Skill。"
 description_en: "Grade handwritten Gaokao continuation-writing answer sheets and produce structured A4 PDF reports (11 sections: sentence-by-sentence correction, plot analysis, highlights, personalised upgrades, polished version) plus a class-wide score ledger. Can be published as a pay-per-report paid skill: ships an Alipay AI pay-per-use (HTTP 402) integration with Payment-Needed billing, Payment-Proof retry, alipay.aipay.agent.payment.verify, alipay.aipay.agent.fulfillment.confirm, and idempotent order persistence. Use for continuation-writing grading, answer-sheet grading, batch essay grading, paid skill monetisation, or generating English essay feedback reports."
-version: 1.1.1
+version: 1.2.0
 author: Cocogoat-77
 agent_created: true
 ---
@@ -16,7 +16,7 @@ agent_created: true
 - 满分 25 分（高考读后续写制），得分必须落在 `references/rubric.md` 的档位与校准锚点内。
 - **本 Skill 不绑定任何具体题目。** 凡与情节有关的内容——原题前文、两段首句、`source_summary`、`p1_tag`／`p2_tag`、情节链大纲、场景词汇、所有引用学生英文的句子——一律来自**当次** `assignment.json` 与**该生实际写的作文**。换一道题就重新生成一份 `assignment.json`，Skill 本体不需要改。
 - 报告结构、版式、配色、字段命名一律以 `references/report-spec.md` 为准，不得自行增删板块。
-- **报告版式有两套皮肤可选**（`--theme`），见 `references/themes.md`：`default` 原版（默认，1:1 复刻批改报告样本）／`apple` Apple 风格（**要打印选它**）。皮肤只换长相，不换判定与板块。用户没指定就用 `default`。
+- **报告版式有两套皮肤可选**（`--theme`），见 `references/themes.md`：`apple` Apple 风格（**默认**，零暗底、打印友好）／`classic` 原版（1:1 复刻批改报告样本）。皮肤只换长相，不换判定与板块。用户没指定就用 `apple`。
 - 问题标签、错误类型、衔接检查用语只能取自 `references/tag-library.md` 的固定集合。
 - 学生姓名的写法：报告标题与页眉用学生的真实姓名，不用学号代替。
 - 未提供原题时，先做语言层批改（逐句批改、错误分析、出彩表达、个性化提升），情节分析相关板块留空并明确告知用户缺什么，不虚构原文情节。
@@ -50,7 +50,7 @@ agent_created: true
 
 ```bash
 python scripts/render.py --json results/<学号>_<姓名>.json --outdir ./out
-# 换皮肤（可选）：--theme apple；--list-themes 看全部
+# 换皮肤（可选）：--theme classic 用原版；--list-themes 看全部
 ```
 
 5. 交付 `./out/读后续写_<学号>_<姓名>.html` 与 `.pdf`。用 `present_files` 打开 HTML 预览。
@@ -90,12 +90,12 @@ python scripts/aggregate.py --results-dir ./results --assignment assignment.json
 
 ```bash
 python scripts/render.py --jsondir ./final --outdir ./out
-# 可选：--theme apple 换 Apple 打印版；--marks strict 强制规格内的修订标记配色
+# 可选：--theme classic 用原版（1:1 复刻批改报告样本）；--marks strict 强制规格内的修订标记配色
 #       --list-themes 查看全部皮肤。版式与设计规范见 references/themes.md
 ```
 
 > 同一个 `final/` 可以反复渲染成不同皮肤，互不影响 —— 皮肤是纯 CSS 层的替换。
-> **要给老师打印的版本用 `--theme apple`**（无暗底、省墨、不糊字）。
+> **打印场景保持 `--theme apple`**（默认即是：无暗底、省墨、不糊字）；要 1:1 复刻批改报告样本的版式才用 `--theme classic`。
 
 **阶段 4｜质检**（见下方质量闸门）通过后交付：报告 PDF 打包 + 台账 Excel。
 
@@ -201,7 +201,7 @@ python scripts/skillpay/server.py --port 8787
 - **PDF 中文变方框**：确认 `C:\Windows\Fonts\SIMYOU.TTF`（幼圆）存在；缺失时页眉页脚不可用，但正文仍由浏览器渲染，不受影响。
 - **页码/页眉缺失**：由 `render.py` 的 `stamp_header_footer` 用 pymupdf 加盖，需安装 `pymupdf`。
 - **版式微调**：改 `assets/report-template.html`（原版）或 `assets/themes/report-template-<皮肤>.html` 里的 CSS，全部尺寸用 pt。**新增皮肤**：满足 `references/themes.md` 第七节的占位符契约，放进 `assets/themes/` 并在 `scripts/render.py` 的 `THEMES` 登记一行即可被 `--theme` 选用。
-- **用户问"能不能换个样子"**：给 `--theme` 的选项（`default` / `apple`），并说明「要打印选 apple」，不要自己去改模板 —— 两套皮肤都在 `references/themes.md` 里定了规范，临时改会破坏一致性。
+- **用户问"能不能换个样子"**：给 `--theme` 的选项（`apple` / `classic`），并说明「`apple` 是默认，零暗底适合打印；`classic` 是 1:1 复刻批改报告样本」，不要自己去改模板 —— 两套皮肤都在 `references/themes.md` 里定了规范，临时改会破坏一致性。
 - **手写体看不清/拿不准**：**只看一次，不反复纠缠。** 用 `pymupdf` 对该区域 `get_pixmap(clip=..., dpi=1000~1500)` 裁一张看一眼就够（本机 PIL 不可用，不要用 PIL 裁剪）。看完仍判断不了那个词是不是被划掉的，**按硬约束第 1 条默认当作被划掉、不转写**，继续往下做，**不要**换 DPI 反复重裁、不要反复回看、也不要为此停下来问人。**更不要**用"整页低分辨率图 + 语感猜测"代替——看不清就按划定，这一条已经给了兜底，不值得为单个词打断整批批改。
 - **要把 Skill 发布到 GitHub**：网页端拖拽上传**不读 `.gitignore`**，所以用 `python scripts/pack_for_upload.py` 按白名单打包后再拖 —— 学生数据（答题卡、`results/`、`out/`、台账 xlsx）只可能在白名单之外，打不进包。
 - **定位坐标总是不准**：先在整页上画一张 0.02 精度的坐标网格图（pymupdf `new_shape().draw_line()` 叠在原图副本上），读出各行 y 值后再裁剪，比反复试错快得多。（不同答题卡版式不同，每换一种答题卡都要重新标定；实测某一种答题卡上作文正文每行约占 0.031 页高，仅供参考。）

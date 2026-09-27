@@ -60,7 +60,8 @@ def main():
         p.add_argument("--json", help="要交付的批改结果 JSON")
         p.add_argument("--jsondir", help="批量：批改结果 JSON 目录")
         p.add_argument("--outdir", default="./out", help="交付物输出目录")
-        p.add_argument("--theme", default="default", help="报告皮肤：default / apple")
+        p.add_argument("--theme", default="apple",
+                       help="报告皮肤：apple（默认，打印友好）/ classic（原版样本版式）")
         p.add_argument("--marks", default="theme", help="修订标记口径：theme / strict")
 
     p_probe = sub.add_parser("probe", help="第 1 步：请求资源（未付款返回 402）")

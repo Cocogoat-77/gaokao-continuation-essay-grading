@@ -11,6 +11,24 @@
 
 ---
 
+## [1.2.0] - 2026-09-27
+
+### 变更
+
+- **Apple 版成为默认报告版式。** `--theme` 不带参数时即输出 Apple 风格（纯白纸 + 灰色圆角卡片 +
+  只描边的胶囊标题，零暗底，打印友好）；要 1:1 复刻批改报告样本的版式，改用 **`--theme classic`**。
+  `render.py` 新增 `DEFAULT_THEME` 常量，付费层的默认版式跟随它。
+- **README 不再包含付费上架章节。** 相关说明（四步编排、命令示例、协议字段、配置与安全提醒）
+  全部并入本文件 [1.1.0] 条目，代码与 `references/skillpay.md` 原样保留。
+
+### 说明
+
+- `--theme default` 写法自本版本起不再有效：取 `apple`（默认）或 `classic`（原版样本版式），
+  `python scripts/render.py --list-themes` 可列出全部。
+- 仓库新增 `dist/`，附上对外分发包 zip（含安装说明），可直接下载转发。
+
+---
+
 ## [1.1.1] - 2026-09-26
 
 **安全修复**：移除一项被安全评审判定为「削弱主机安全防御」的写法。
@@ -61,12 +79,29 @@
 - **接入规范文档** [`references/skillpay.md`](references/skillpay.md)：协议字段、五项必做控制、
   配置环境变量、沙箱↔生产切换、安全红线、上线前核对清单。
 
+### 本地操作
+
+```bash
+# 离线跑通整条链路（生成密钥 + mock 网关，不需要商户资质、不联网）
+python scripts/skillpay/selftest.py
+
+# 看价格 / 请求资源（未付款输出 402 账单）/ 携带凭证重试
+python scripts/skillpay/cli.py pay-info
+python scripts/skillpay/cli.py probe --jsondir ./final --outdir ./out
+python scripts/skillpay/cli.py complete --payment-proof "<Base64URL>" --jsondir ./final --outdir ./out
+
+# 本地 HTTP 服务：返回真实的 402 状态码与 Payment-Needed / Payment-Validation 响应头
+python scripts/skillpay/server.py --port 8787
+```
+
 ### 说明
 
 - 付费层对原有批改能力**零侵入**：不启用付费时，直接跑 `scripts/render.py` 的行为与 1.0.0 完全一致。
 - 新增可选依赖 `pycryptodome`（仅在需要 402 签名时安装；也可用 `cryptography`）。
 - `.gitignore` 新增排除 `skillpay.local.json`、`state/`、`*.pem`、`*.key`、`*.db` ——
   商家私钥与订单库绝不入库。
+- **安全提醒**：商家应用私钥只从环境变量或本地 `skillpay.local.json` 读取，**不要提交到仓库**
+  （`.gitignore` 已排除 `skillpay.local.json`、`state/`、`*.pem`）。
 
 ---
 

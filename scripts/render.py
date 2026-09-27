@@ -12,7 +12,7 @@ render.py —— 读学生批改结果 JSON，输出 HTML 与 A4 PDF。
     python render.py --jsondir ./final --outdir ./out --theme apple
     python render.py --jsondir ./final --outdir ./out --theme apple --marks strict
 
-    --theme  default(默认，1:1 复刻批改报告样本) / apple(打印友好)
+    --theme  apple(默认，打印友好) / classic(1:1 复刻批改报告样本)
     --marks  theme(默认，跟随皮肤配色) / strict(强制 report-spec 的 #CACACA 灰底+红字)
 
 依赖：pymupdf（pip install pymupdf）；Playwright 自带 Chromium（HTML→PDF）。
@@ -30,16 +30,18 @@ THEME_DIR = os.path.join(ASSETS, "themes")
 # ---------- 皮肤注册表 ----------
 # 所有模板共用同一套占位符契约（见 references/themes.md 第六节），换皮肤只换 CSS 与版式，
 # 不动正文、不动 11 个板块、不动 JSON 契约。
+# v1.2.0 起默认版式为 Apple（零暗底、打印友好）；原版（1:1 复刻批改报告样本）改用 --theme classic。
 THEMES = {
-    "default": os.path.join(ASSETS, "report-template.html"),
     "apple": os.path.join(THEME_DIR, "report-template-apple.html"),
+    "classic": os.path.join(ASSETS, "report-template.html"),
 }
 THEME_DESC = {
-    "default": "原版 —— 逐元素复刻批改报告样本版式（默认）",
-    "apple": "Apple 风格 —— 纯白纸 + 灰色圆角卡 + 描边胶囊标题，无暗底，适合打印",
+    "apple": "Apple 风格 —— 纯白纸 + 灰色圆角卡 + 描边胶囊标题，无暗底，适合打印（默认）",
+    "classic": "原版 —— 逐元素复刻批改报告样本版式",
 }
 
-TEMPLATE = THEMES["default"]
+DEFAULT_THEME = "apple"
+TEMPLATE = THEMES[DEFAULT_THEME]
 
 # `--marks strict` 时追加的覆盖样式：把订正标记拉回 report-spec 的约定。
 # 设计皮肤为了守住"每套只有一个强调色"，订正文本走的是各皮肤自己的强调色；
@@ -360,7 +362,7 @@ def main():
     ap.add_argument("--jsondir")
     ap.add_argument("--outdir", help="输出目录（--list-themes 时可省略）")
     ap.add_argument("--html-only", action="store_true")
-    ap.add_argument("--theme", default="default", choices=list(THEMES),
+    ap.add_argument("--theme", default=DEFAULT_THEME, choices=list(THEMES),
                     help="报告皮肤，默认 default（原版）。用 --list-themes 查看")
     ap.add_argument("--marks", default="theme", choices=["theme", "strict"],
                     help="修订标记配色：theme 跟随皮肤（默认）｜strict 强制灰底红字")
