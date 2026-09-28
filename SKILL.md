@@ -2,7 +2,7 @@
 name: gaokao-continuation-essay-grading
 slug: gaokao-continuation-essay-grading
 displayName: 高中英语读后续写自动批改Skill
-version: 1.2.0
+version: 1.3.0
 summary: "批改学生手写的读后续写答题卡，产出 11 个板块的 A4 个人报告（HTML + PDF）；批整班附班级成绩台账。默认 Apple 版式，打印友好；可选 1:1 复刻批改报告样本的原版（--theme classic）。"
 license: GPL-3.0
 homepage: https://github.com/Cocogoat-77/gaokao-continuation-essay-grading
@@ -27,16 +27,41 @@ agent_created: true
 - 学生姓名的写法：报告标题与页眉用学生的真实姓名，不用学号代替。
 - 未提供原题时，先做语言层批改（逐句批改、错误分析、出彩表达、个性化提升），情节分析相关板块留空并明确告知用户缺什么，不虚构原文情节。
 
-## 环境依赖
+## 环境依赖（首次运行前由 Agent 自行准备）
 
-首次使用前确认（缺失则装到 WorkBuddy 的隔离环境，不要污染用户全局 Python）：
+**不要要求用户手工装依赖，也不要把这一步丢给用户。** 首次使用本 Skill 时，由 Agent 自己检查并补齐，
+一律装到 WorkBuddy 的隔离环境（用运行本 Skill 的那个解释器），**不要污染用户全局 Python、不要用 `--user`**。
+
+**第一步：跑自检，看缺什么**
 
 ```bash
-<python> -m pip install pymupdf playwright openpyxl pycryptodome
+<python> scripts/check_env.py
+```
+
+**第二步：把缺的装上（用同一个解释器）**
+
+```bash
+<python> -m pip install pymupdf playwright openpyxl     # 必需
+<python> -m playwright install chromium                 # 必需：HTML→PDF 的唯一渲染器
+<python> -m pip install pycryptodome                    # 可选：仅付费层 402 签名需要
+```
+
+Chromium 下载慢时先换镜像再装：
+
+```bash
+set PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright
 <python> -m playwright install chromium
 ```
 
-`pymupdf` 用于加盖页眉页脚；`playwright` + 自带 Chromium 用于 HTML→PDF（**唯一路径**，不要改成命令行调用 Edge/Chrome 无头模式：用户已打开浏览器时会被接管并静默失败）；`openpyxl` 仅生成班级台账时需要；`pycryptodome` 仅上架 Pay Skill 时需要（402 账单的 RSA2 签名，也可用 `cryptography` 替代）。
+**第三步：重跑自检确认就绪**，然后直接开始批改，不要停下来让用户确认或重启。
+
+- 缺 `pymupdf` / `playwright` / Chromium 时**必须先补齐**，否则出不了 PDF。
+- 只缺 `openpyxl` 时可以继续出报告，仅台账降级，收尾时说明一句即可。
+- 本机 `cryptography` 可能残缺（报 `No module named '_cffi_backend'`），RSA2 签名优先用 `pycryptodome`。
+
+组件用途：`pymupdf` 盖页眉页脚 + 图片裁剪放大（本机 PIL 不可用，靠它）；`playwright` + 自带 Chromium
+出 HTML→PDF（**唯一路径**，不要改成命令行调用 Edge/Chrome 无头模式：用户已打开浏览器时会被接管并静默失败）；
+`openpyxl` 仅生成班级台账；模板用到系统字体 `C:\Windows\Fonts\SIMYOU.TTF`（幼圆，Windows 自带）。
 
 ## 四路工作流
 

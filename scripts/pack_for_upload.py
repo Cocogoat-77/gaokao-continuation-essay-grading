@@ -33,7 +33,7 @@ WHITELIST = [
     "SKILL.md",             # Skill 主文件：工作流、硬约束、质量闸门
     "README.md",
     "CHANGELOG.md",         # 版本变更记录
-    "LICENSE",
+    "LICENSE.md",
     ".gitignore",           # 对用 git 命令的人是安全网；手动上传时它只是个说明文件
     ".gitattributes",
     # --- 模板 ---
@@ -46,6 +46,7 @@ WHITELIST = [
     "references/tag-library.md",   # 标签库 / 错误类型库 / 衔接检查用语
     "references/skillpay.md",      # 支付宝 AI 按量付费（402 协议）接入规范
     # --- 脚本 ---
+    "scripts/check_env.py",         # 环境自检（只检查不安装）
     "scripts/manifest.py",
     "scripts/aggregate.py",
     "scripts/render.py",

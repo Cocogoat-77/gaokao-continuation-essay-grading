@@ -1,6 +1,6 @@
 # 高中英语读后续写 · 自动批改 Skill
 
-**v1.2.0**（2026-09-27） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE.md) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
+**v1.3.0**（2026-09-29） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE.md) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
 
 **已上架 SkillHub**：<https://skillhub.cn/skills/indiv-cocogoat/gaokao-continuation-essay-grading> ｜ 使用教程：<https://skillhub.cn/tutorials>
 
@@ -40,24 +40,11 @@ C:\Users\<你的用户名>\.workbuddy\skills\
 
 （只想在某个项目里用，也可以放到该项目的 `.workbuddy\skills\` 下。）
 
-**2. 装依赖**
+**2. 重开一个 WorkBuddy 会话**，让它重新扫描 skills 目录。
 
-```bash
-python -m pip install pymupdf playwright openpyxl
-python -m playwright install chromium
-```
-
-Chromium 下载慢的话先换镜像：
-
-```bash
-set PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright
-python -m playwright install chromium
-```
-
-**3. 重开一个 WorkBuddy 会话**，让它重新扫描 skills 目录。
-
-> 依赖说明：`pymupdf` 给 PDF 盖页眉页脚、`playwright` 把 HTML 转成 A4 PDF、`openpyxl` 生成台账。
-> 模板用到系统字体 `C:\Windows\Fonts\SIMYOU.TTF`（幼圆，Windows 自带）。
+> **依赖不用你装。** 第一次让它批改时，它会自己检测并补齐缺少的 Python 包
+> （`pymupdf` / `playwright` / `openpyxl`）和 Chromium 渲染器，装到 WorkBuddy 的隔离环境，
+> 不动你系统里的 Python。想先看看缺什么，也可以让它跑 `python scripts/check_env.py`。
 
 ## 用法
 
@@ -114,6 +101,7 @@ gaokao-continuation-essay-grading/
 │   ├── rubric.md                   25 分制档位与校准锚点、固定句式
 │   └── tag-library.md              问题标签库 / 错误类型库 / 衔接检查用语
 └── scripts/
+    ├── check_env.py                环境自检（只检查不安装；缺什么就打印安装命令）
     ├── manifest.py                 按学号配对答题卡与已有报告，生成作业清单
     ├── aggregate.py                按班级聚合佳句与场景词汇，生成成绩台账
     ├── render.py                   JSON → HTML → A4 PDF（--theme 选皮肤）
