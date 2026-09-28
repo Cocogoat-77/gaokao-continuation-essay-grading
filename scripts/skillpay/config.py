@@ -22,12 +22,12 @@ SANDBOX_SERVICE_ID = "api_mock_service_id"
 
 # 计费口径：**按报告篇数**计价。
 #   账单金额 = unit_price × 本次请求的篇数
-#   例：一篇 ¥0.01 → 0.01；一个班 40 篇 → 0.40
+#   例：一篇 ¥0.02 → 0.02；一个班 40 篇 → 0.80
 RESOURCE_ID = "grade-report"
 GOODS_NAME = "高中读后续写自动批改（按篇计费）"
-DEFAULT_UNIT_PRICE = "0.01"    # 元/篇；必须与 SkillHub 发布表单里的定价一致
+DEFAULT_UNIT_PRICE = "0.02"    # 元/篇；必须与 SkillHub 发布表单里的定价一致
 DEFAULT_QUANTITY_CAP = 2500    # 单次调用最多交付多少篇（防误传目录导致天价账单）
-                               # 2500 篇 × 0.01 元 = 上限账单 25.00 元
+                               # 2500 篇 × 0.02 元 = 上限账单 50.00 元
 DEFAULT_PAY_WINDOW_MIN = 30    # 账单有效期（分钟）
 
 _FIELDS = (
