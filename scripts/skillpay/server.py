@@ -75,10 +75,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == RESOURCE_PATH:
             # ★ 无 Payment-Proof → probe（402 账单下发）
             proof_header = self.headers.get("Payment-Proof") or body.get("payment_proof")
+            print("[REQ] %s proof=%s" % (path, ("yes(%d chars)" % len(proof_header)) if proof_header else "no"), flush=True)
             if not proof_header:
                 return self._send(SERVICE.probe(body.get("payload")))
             # ★ 携带 Payment-Proof 重试 → complete（验付 + 履约）
-            return self._send(SERVICE.complete(proof_header, body.get("payload")))
+            result = SERVICE.complete(proof_header, body.get("payload"))
+            import json as _json
+            print("[CMP] status=%s body=%s" % (result.get("status"), _json.dumps(result.get("body"), ensure_ascii=False)[:600]), flush=True)
+            return self._send(result)
 
         if path == "/v1/ack":
             return self._send(SERVICE.ack(body.get("trade_no")))
@@ -92,6 +96,8 @@ def main():
     ap = argparse.ArgumentParser(description="skillpay 本地付费资源服务")
     ap.add_argument("--host", default="127.0.0.1", help="默认只监听本机回环地址")
     ap.add_argument("--port", type=int, default=8787)
+    ap.add_argument("--tls-cert", default=None, help="TLS 证书链 PEM（提供后端点为 HTTPS）")
+    ap.add_argument("--tls-key", default=None, help="TLS 私钥 PEM")
     args = ap.parse_args()
 
     cfg = config_mod.load()
@@ -105,7 +111,14 @@ def main():
 
     SERVICE = PayService(cfg)
     httpd = ThreadingHTTPServer((args.host, args.port), Handler)
-    addr = "http://%s:%d" % (args.host, args.port)
+    scheme = "http"
+    if args.tls_cert and args.tls_key:
+        import ssl as _ssl
+        _ctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_SERVER)
+        _ctx.load_cert_chain(args.tls_cert, args.tls_key)
+        httpd.socket = _ctx.wrap_socket(httpd.socket, server_side=True)
+        scheme = "https"
+    addr = "%s://%s:%d" % (scheme, args.host, args.port)
     print("\n付费资源端点：POST %s%s" % (addr, RESOURCE_PATH))
     print("价格信息：     GET  %s/v1/pay-info" % addr)
     print("履约确认重试： POST %s/v1/ack" % addr)

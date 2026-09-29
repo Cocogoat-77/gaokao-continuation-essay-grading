@@ -154,6 +154,18 @@ def seller_signature(fields, private_key_raw):
     return base64.b64encode(_sign(backend, key, sign_string.encode("utf-8"))).decode("utf-8")
 
 
+def sign_gateway_params(params, private_key_raw):
+    """开放平台网关标准签名（RSA2）：除 sign 外**全部**参数按 key 字典序
+    拼 `k=v&k=v`（跳过 None 与空串），与网关验签的重组规则一致。
+
+    注意：不能用 seller_signature——那只覆盖账单字段白名单，
+    网关请求参数（app_id/method/biz_content/...）不在其中，会签出空串。
+    """
+    backend, key = _load_private_key(private_key_raw)
+    sign_string = build_sign_string(params)
+    return base64.b64encode(_sign(backend, key, sign_string.encode("utf-8"))).decode("utf-8")
+
+
 def verify_signature(fields, signature_b64, public_key_raw):
     """校验签名（自测与排查用）。"""
     backend, key = _load_public_key(public_key_raw)

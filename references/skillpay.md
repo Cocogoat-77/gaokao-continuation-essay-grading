@@ -128,9 +128,13 @@ order_status   : PENDING_PAYMENT ──→ PAID
 fulfill_status : UNFULFILLED ──→ PENDING_CONFIRM ──→ FULFILLED
 ```
 
-- 首次进入履约前必须仍在 `pay_before` 内且未取消；
+- `pay_before` 只在 **probe（账单下发）** 阶段是硬约束：过期账单收银端本就不受理；
+- **验付已通过（支付宝确认真实收款）后，不得再以 `pay_before` 已过为由拒绝交付**——
+  否则等于「已收款不发货」（moveToMobile 付款在时限内完成、验付请求晚到几分钟即触发）。
+  `service.py` 3.8 与 `store.prepare_fulfillment` 均按此实现；
 - **已经原子进入 `PENDING_CONFIRM` / `FULFILLED` 的同一订单，只能重试确认或返回已保存结果，
-  不得因为支付截止时间已过而重复生成资源**（`prepare_fulfillment` 里显式实现了这条）。
+  不得重复生成资源**（`prepare_fulfillment` 里显式实现了这条）；
+- 防串单 / 防重复由 trade_no 唯一索引（3.9）与幂等履约（3.10）保证。
 
 ## 六、计费口径
 
@@ -219,7 +223,7 @@ python scripts/skillpay/server.py --port 8787
 |---|---|
 | `probe` 返回 500 `CONFIG_ERROR` | 未配置商家私钥。设 `SKILLPAY_MERCHANT_PRIVATE_KEY` 或写本地 `skillpay.local.json` |
 | `probe` 返回 400 `QUANTITY_ERROR` | 篇数为 0 或超过 `quantity_cap`。分批调用或调大上限 |
-| `complete` 一直返回 402 | 看响应体里的 `rejected_reason`：凭证无效／金额不符／资源串号／篇数不符／订单过期，各有明确文案 |
+| `complete` 一直返回 402 | 看响应体里的 `rejected_reason`：凭证无效／金额不符／资源串号／篇数不符，各有明确文案。验付已通过后不再有「订单过期」分支 |
 | 返回 502 `FULFILLMENT_CONFIRM_FAILED` | 资源已生成、履约确认未成功。用**同一 Payment-Proof** 重试，或调 `ack` |
 | 签名校验不过 | 检查是否把 `seller_id` / `service_id` 漏掉——它们只在 `method` 段，用 `bill.sign_fields_from_payment_needed()` 还原 |
 | 提示需要 RSA 签名库 | `pip install pycryptodome`（官方示例用的也是它） |

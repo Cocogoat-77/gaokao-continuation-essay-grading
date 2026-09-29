@@ -248,7 +248,8 @@ def main():
              payload={"jsondir": json_dir(tmp, 2)}, trade="T2026092600000008",
              outdir="o8")
 
-        # 订单过期
+        # 订单过期：验付已确认支付宝侧真实收款，pay_before 不再是履约硬闸门
+        # （避免 moveToMobile「付款在时限内完成、验付晚到」被拒）。期待 200 履约。
         r_exp = svc.probe({"json": "x/exp.json"})
         o_exp = r_exp["body"]["out_trade_no"]
         trade_exp = "T2026092600000009"
@@ -259,9 +260,9 @@ def main():
                      ("2020-01-01T00:00:00+08:00", o_exp))
         conn.commit()
         conn.close()
-        res = svc.complete(make_proof(trade_exp), {"json": "x/exp.json"})
-        check("订单已过期 → 402", res["status"] == 402,
-              "reason=%s" % res["body"].get("rejected_reason", ""))
+        res = svc.complete(make_proof(trade_exp), None)  # 凭据交付模式（无 json/jsondir，计 1 篇）
+        check("订单已过期但验付通过 → 200 履约", res["status"] == 200,
+              "status=%s body=%s" % (res["status"], str(res["body"])[:300]))
 
         print("\n【六】凭证复用 —— 同一 trade_no 不能履给另一笔订单")
         r_new = svc.probe({"json": "x/reuse.json"})

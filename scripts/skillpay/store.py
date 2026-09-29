@@ -142,11 +142,11 @@ class OrderStore:
             if order["fulfill_status"] not in FULFILL_STATUS:
                 c.execute("ROLLBACK")
                 return None
-            # 已经进入履约流程的订单，不再看 pay_before（官方明确要求：
-            # 不得因为支付截止时间已过就重复生成资源）
-            if order["fulfill_status"] == "UNFULFILLED" and not _is_future(order["pay_before"]):
-                c.execute("ROLLBACK")
-                return None
+            # pay_before 不是履约硬闸门：能走到这里说明验付已通过（支付宝
+            # 确认真实收款），不得因支付截止时间已过就拒绝交付（否则等于
+            # 「已收款不发货」，moveToMobile 验付晚到几分钟即触发）。
+            # 本地时效的真实防线在 probe：过期账单收银端本就不受理；
+            # 防串单/防重复由 trade_no 唯一索引与幂等履约保证。
 
             # 已履约过：直接返回历史结果，不重新生成
             if order["fulfill_status"] in IN_PROGRESS and order["service_result"]:

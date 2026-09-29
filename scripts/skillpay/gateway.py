@@ -17,7 +17,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime
 
-from .bill import build_sign_string, seller_signature
+from .bill import sign_gateway_params, seller_signature
 
 VERIFY = "alipay.aipay.agent.payment.verify"
 CONFIRM = "alipay.aipay.agent.fulfillment.confirm"
@@ -47,7 +47,7 @@ class AlipayGateway:
             "version": "1.0",
             "biz_content": json.dumps(biz, ensure_ascii=False, separators=(",", ":")),
         }
-        params["sign"] = seller_signature(params, self.cfg["merchant_private_key"])
+        params["sign"] = sign_gateway_params(params, self.cfg["merchant_private_key"])
 
         body = urllib.parse.urlencode(params).encode("utf-8")
         req = urllib.request.Request(

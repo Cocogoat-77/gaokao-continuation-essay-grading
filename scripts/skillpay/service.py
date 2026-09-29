@@ -12,6 +12,7 @@
   - **先落库再下发账单**：`create_pending` 必须发生在返回 `Payment-Needed` 之前。
   - **任一校验失败一律回到 402**，绝不返回资源；也绝不用「结果不明」为由让用户重复付款。
 """
+import base64
 import json
 import os
 import time
@@ -86,6 +87,23 @@ def default_deliver(payload, order):
     if not produced and errors:
         raise DeliveryError("交付失败：%s" % json.dumps(errors, ensure_ascii=False))
 
+    # 报告文件内容随响应回传（Base64）——买家端没有服务器磁盘，
+    # 只回传本地路径等于"付了钱拿不到货"。凭据交付模式（produced 为空）不涉及。
+    files = []
+    for item in produced:
+        for kind, mime in (("html", "text/html"), ("pdf", "application/pdf")):
+            path = item.get(kind)
+            if not path or not os.path.isfile(path):
+                continue
+            with open(path, "rb") as fh:
+                files.append({
+                    "name": os.path.basename(path),
+                    "kind": kind,
+                    "mime": mime,
+                    "size": os.path.getsize(path),
+                    "data_base64": base64.b64encode(fh.read()).decode("ascii"),
+                })
+
     return {
         "resource_id": order["resource_id"],
         "out_trade_no": order["out_trade_no"],
@@ -93,6 +111,7 @@ def default_deliver(payload, order):
         "outdir": outdir,
         "theme": theme,
         "produced": produced,
+        "files": files,
         "errors": errors,
     }
 
@@ -282,7 +301,13 @@ class PayService:
 
         in_progress = order["fulfill_status"] in IN_PROGRESS
         if not in_progress and not _is_future(order["pay_before"]):
-            return self._redirect_to_402("订单已过期：%s" % order["pay_before"], payload)
+            # 验付（3.2–3.7）已确认支付宝侧真实收款——钱已付，不再以本地
+            # pay_before 拒绝履约（避免「已收款不发货」，如 moveToMobile
+            # 付款在时限内完成、验付请求晚到几分钟的场景）。
+            # 本地时效的真实防线在 probe：过期账单收银端本就不受理；
+            # 防串单/防重复由 3.9（trade_no 唯一）与 3.10（幂等履约）保证。
+            print("[CMP] 订单 %s 已过 pay_before(%s)，但验付通过，按已支付事实继续履约"
+                  % (order["out_trade_no"], order["pay_before"]), flush=True)
 
         # 3.9 同一 trade_no 不得履给另一笔订单（trade_no 唯一索引 + 显式检查）
         other = self.store.find_by_trade_no(verify_trade_no)

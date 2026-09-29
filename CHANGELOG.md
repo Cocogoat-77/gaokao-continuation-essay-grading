@@ -11,6 +11,33 @@
 
 ---
 
+## [1.3.1] - 2026-09-30
+
+### 修复
+
+- **网关验签失败（`isv.invalid-signature`）**：`gateway.py` 误用账单签名函数
+  `seller_signature`（其 `SIGN_FIELDS` 白名单全是账单字段）签网关请求，
+  导致验付/履约确认请求签出**空串签名**、被支付宝网关拒签。
+  新增 `bill.sign_gateway_params()`（除 `sign` 外全部参数按 key 字典序，标准 RSA2）修复。
+  **部署侧必须同步更新 `bill.py` + `gateway.py`**，否则 402 闭环在验付一步必失败。
+- **「已收款不发货」**：订单 `pay_before` 过期后，即使支付宝验付已确认真实收款，
+  `service.py`（3.8）与 `store.prepare_fulfillment` 仍会拒绝履约——
+  moveToMobile 场景下「付款在时限内完成、验付请求晚到几分钟」即触发。
+  现改为：**验付通过即履约**；`pay_before` 只在 probe（账单下发）阶段是硬约束
+  （过期账单收银端本就不受理）。防串单/防重复由 trade_no 唯一索引与幂等履约保证。
+  `selftest.py` 过期用例同步改为期待 200 履约（50/50 全绿）。
+
+### 新增
+
+- **服务端 HTTPS 支持**：`server.py` 新增 `--tls-cert` / `--tls-key`，
+  提供 HTTPS 监听（402 协议的回打环节要求付费资源地址必须 HTTPS）。
+- **报告文件随响应回传**：`service.default_deliver` 渲染出的 HTML/PDF
+  以 Base64 放入 `service_result.files[]`（`name` / `kind` / `mime` / `size` /
+  `data_base64`）——买家端没有服务器磁盘，只回传本地路径等于拿不到报告。
+  凭据交付模式（未指定 `--json/--jsondir`）不受影响。
+
+---
+
 ## [1.3.0] - 2026-09-29
 
 ### 新增
