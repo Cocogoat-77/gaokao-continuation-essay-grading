@@ -310,7 +310,51 @@ def main():
               and isinstance(resc["body"].get("content"), dict),
               "status=%s" % resc["status"])
 
-        print("\n【九】订单统计")
+        print("\n【九】内联 reports 模式 —— 远程买家全链路（真实渲染）")
+        # 测试配置单价 0.01 元/篇，2 篇 = 0.02 元。真实渲染需要 playwright+chromium。
+        def mini_report(sid, name):
+            return {"student": {"id": sid, "name": name, "class": "高三1班"},
+                    "meta": {"assignment": "读后续写", "date": "2026-09-30"}}
+
+        inline_payload = {"reports": [
+            {"name": "3021_张三.json", "content": mini_report("3021", "张三")},
+            {"name": "3022_李四.json", "content": mini_report("3022", "李四")},
+        ]}
+        check("count_reports 按内联篇数计",
+              PayService.count_reports(inline_payload) == 2)
+        r_in = svc_c.probe(inline_payload)
+        check("内联 2 篇账单 = 0.02 元",
+              r_in["status"] == 402 and r_in["body"]["amount"] == "0.02",
+              "status=%s amount=%s" % (r_in["status"], r_in["body"].get("amount")))
+        o_in = r_in["body"]["out_trade_no"]
+        t_in = "T2026093000000012"
+        proof_map[t_in] = {"out_trade_no": o_in, "amount": r_in["body"]["amount"],
+                           "resource_id": svc_c.resource_id}
+        res_in = svc_c.complete(make_proof(t_in), inline_payload)
+        body_in = (res_in["body"] or {}).get("content") or {}
+        files_in = body_in.get("files") or []
+        kinds_in = sorted(f.get("kind", "") for f in files_in)
+        check("内联模式 200 履约", res_in["status"] == 200,
+              "status=%s body=%s" % (res_in["status"], str(res_in["body"])[:200]))
+        check("回传 2 份报告 × HTML+PDF = 4 个文件",
+              len(files_in) == 4 and kinds_in == ["html", "html", "pdf", "pdf"],
+              "kinds=%s errors=%s" % (kinds_in, body_in.get("errors")))
+        check("文件内容为非空 Base64",
+              all(isinstance(f.get("data_base64"), str) and f["data_base64"]
+                  for f in files_in))
+        check("produced 不泄漏服务器路径",
+              all("/" not in p.get("json", "") and "\\" not in p.get("json", "")
+                  for p in body_in.get("produced", [])),
+              "produced=%s" % body_in.get("produced"))
+        # 篇数防篡改：同一凭证、重试时少带一份 → 回 402
+        res_tamper = svc_c.complete(make_proof(t_in),
+                                    {"reports": inline_payload["reports"][:1]})
+        check("内联篇数被篡改（2 改 1）→ 402",
+              res_tamper["status"] == 402,
+              "status=%s reason=%s" % (res_tamper["status"],
+                                       res_tamper["body"].get("rejected_reason", "")))
+
+        print("\n【十】订单统计")
         print("  %s" % json.dumps(svc.store.stats(), ensure_ascii=False))
 
     finally:

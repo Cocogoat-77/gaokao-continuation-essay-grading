@@ -27,6 +27,7 @@ from skillpay.service import PayService            # noqa: E402
 
 RESOURCE_PATH = "/v1/grade"
 SERVICE = None
+MAX_BODY = 64 * 1024 * 1024   # 请求体上限 64MB（约够一个班 60 份内联报告）
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -44,9 +45,12 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _read_json(self):
+        """读 JSON 请求体；超过 MAX_BODY 返回 None（调用方回 413），损坏返回 {}。"""
         length = int(self.headers.get("Content-Length") or 0)
         if not length:
             return {}
+        if length > MAX_BODY:
+            return None
         raw = self.rfile.read(length)
         try:
             return json.loads(raw.decode("utf-8"))
@@ -71,6 +75,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = self.path.split("?")[0]
         body = self._read_json()
+        if body is None:
+            return self._send({"status": 413, "headers": {},
+                               "body": {"code": "PAYLOAD_TOO_LARGE",
+                                        "message": "请求体超过 64MB 上限，请分批提交"}})
 
         if path == RESOURCE_PATH:
             # ★ 无 Payment-Proof → probe（402 账单下发）

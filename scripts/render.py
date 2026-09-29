@@ -87,6 +87,50 @@ def list_themes():
 
 YOUYUAN = r"C:\Windows\Fonts\SIMYOU.TTF"
 
+# 服务端（Linux）部署时的中文字体候选：按顺序取第一个"存在且真的能写中文"的。
+FONT_CANDIDATES = (
+    YOUYUAN,
+    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/arphic/uming.ttc",
+    "/usr/share/fonts/truetype/arphic/ukai.ttc",
+)
+
+
+def _find_cjk_font():
+    """找一块能写中文字形的字体；找不到返回 None。
+
+    候选列表覆盖 Windows 幼圆与 Linux 常见发行版打包的 CJK 字体；
+    最后兜底交给 fontconfig（fc-match），并逐一用 has_glyph 验证
+    真的能画出"中"字——避免 fc-match 把西文字体当答案导致页眉全是方框。
+    """
+    paths = list(FONT_CANDIDATES)
+    try:
+        import subprocess
+        out = subprocess.run(["fc-match", "-f", "%{file}", "sans-serif:lang=zh"],
+                             capture_output=True, text=True, timeout=5)
+        p = (out.stdout or "").strip()
+        if p:
+            paths.append(p)
+    except Exception:
+        pass
+    try:
+        import pymupdf
+    except ImportError:
+        return None
+    for p in paths:
+        if not p or not os.path.exists(p):
+            continue
+        try:
+            f = pymupdf.Font(fontfile=p)
+            if f.has_glyph(ord("中")) and f.has_glyph(ord("A")):
+                return p
+        except Exception:
+            continue
+    return None
+
 # ---------- 极简模板引擎：{{key}} / {{#list}}...{{/list}} / {{.}} / 段落起始缩进 ----------
 
 TOKEN = re.compile(r"\{\{([#/]?)([\w.]+)\}\}")
@@ -293,8 +337,17 @@ def html_to_pdf(html_path, pdf_path):
 
 
 def stamp_header_footer(pdf_path, data):
-    """在每一页加盖页眉（班级/学号/姓名）与页脚（页码/日期）。"""
+    """在每一页加盖页眉（班级/学号/姓名）与页脚（页码/日期）。
+
+    找不到中文字体时跳过盖章（stderr 提示），正文不受影响——
+    页眉页脚只是锦上添花，不能因它让整份报告交付失败。
+    """
     import pymupdf
+
+    fontfile = _find_cjk_font()
+    if not fontfile:
+        sys.stderr.write("[warn] 未找到可用的中文字体，跳过页眉页脚（正文不受影响）\n")
+        return
 
     st = data.get("student", {})
     meta = data.get("meta", {})
@@ -305,12 +358,12 @@ def stamp_header_footer(pdf_path, data):
     weekday = meta.get("weekday", "")
 
     doc = pymupdf.open(pdf_path)
-    font = pymupdf.Font(fontfile=YOUYUAN) if os.path.exists(YOUYUAN) else None
+    font = pymupdf.Font(fontfile=fontfile)
     total = doc.page_count
     W = doc[0].rect.width
 
     for i, page in enumerate(doc, 1):
-        page.insert_font(fontname="yy", fontfile=YOUYUAN)
+        page.insert_font(fontname="yy", fontfile=fontfile)
         # 页眉：右对齐，小字信息 + 大字姓名
         left_info = "班级：%s  |  学号：%s" % (cls, sid)
         w_info = font.text_length(left_info, 8) if font else len(left_info) * 8

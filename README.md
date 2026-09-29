@@ -1,6 +1,6 @@
 # 高中英语读后续写 · 自动批改 Skill
 
-**v1.3.1**（2026-09-30） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE.md) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
+**v1.4.0**（2026-09-30） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE.md) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
 
 **已上架 SkillHub**：<https://skillhub.cn/skills/indiv-cocogoat/gaokao-continuation-essay-grading> ｜ 使用教程：<https://skillhub.cn/tutorials>
 

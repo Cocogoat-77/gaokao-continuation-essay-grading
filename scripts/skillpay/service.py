@@ -15,12 +15,17 @@
 import base64
 import json
 import os
+import shutil
+import tempfile
 import time
 from datetime import datetime
 
 from . import bill, config as config_mod, proof as proof_mod
 from .gateway import get_gateway
 from .store import IN_PROGRESS, FULFILL_STATUS, ORDER_STATUS, OrderStore, normalize_amount
+
+# 内联模式单次请求的报告篇数保险丝（真正的计费上限由 quantity_cap 在 probe 把关）
+MAX_INLINE_REPORTS = 500
 
 
 class DeliveryError(RuntimeError):
@@ -40,14 +45,98 @@ def _load_render():
     return mod
 
 
+def _write_back_files(produced):
+    """把渲染产物读成 Base64 回传列表——买家端没有服务器磁盘，只回传路径等于拿不到货。"""
+    files = []
+    for item in produced:
+        for kind, mime in (("html", "text/html"), ("pdf", "application/pdf")):
+            path = item.get(kind)
+            if not path or not os.path.isfile(path):
+                continue
+            with open(path, "rb") as fh:
+                files.append({
+                    "name": os.path.basename(path),
+                    "kind": kind,
+                    "mime": mime,
+                    "size": os.path.getsize(path),
+                    "data_base64": base64.b64encode(fh.read()).decode("ascii"),
+                })
+    return files
+
+
+def _deliver_inline_reports(payload, order):
+    """内联报告模式（远程买家）：payload.reports = [{"name": 文件名, "content": 报告JSON}]。
+
+    - 报告内容随请求上传，写到服务端临时目录渲染，渲染完**整目录删除**；
+    - **忽略买家传的 outdir**——绝不允许买家指定服务器写盘路径；
+    - 返回 files[] 携带 HTML/PDF 的 Base64 内容，produced 只回传文件名不回传路径。
+    """
+    reports = payload.get("reports") or []
+    if len(reports) > MAX_INLINE_REPORTS:
+        raise DeliveryError("内联报告篇数超上限：%d > %d" % (len(reports), MAX_INLINE_REPORTS))
+
+    workdir = tempfile.mkdtemp(prefix="skillpay_reports_")
+    try:
+        targets = []
+        for i, item in enumerate(reports, 1):
+            name = os.path.basename(str(item.get("name") or "report_%03d.json" % i))
+            if not name.endswith(".json"):
+                name += ".json"
+            content = item.get("content")
+            if not isinstance(content, dict):
+                raise DeliveryError("第 %d 份报告缺少 content（必须是 JSON 对象）" % i)
+            path = os.path.join(workdir, name)
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(content, fh, ensure_ascii=False)
+            targets.append(path)
+
+        render = _load_render()
+        theme = payload.get("theme") or getattr(render, "DEFAULT_THEME", "apple")
+        marks = payload.get("marks") or "theme"
+        render.use_theme(theme)
+        render.use_marks(marks)
+
+        outdir = os.path.join(workdir, "_out")
+        produced, errors = [], []
+        for src in targets:
+            try:
+                html_path, pdf_path = render.process(src, outdir)
+                produced.append({"json": os.path.basename(src),
+                                 "html": html_path, "pdf": pdf_path})
+            except Exception as exc:
+                errors.append({"json": os.path.basename(src), "error": str(exc)})
+
+        if not produced and errors:
+            raise DeliveryError("交付失败：%s" % json.dumps(errors, ensure_ascii=False))
+
+        return {
+            "resource_id": order["resource_id"],
+            "out_trade_no": order["out_trade_no"],
+            "delivered_at": datetime.now().isoformat(timespec="seconds"),
+            "mode": "inline",
+            "theme": theme,
+            "produced": [{"json": it["json"]} for it in produced],
+            "files": _write_back_files(produced),
+            "errors": errors,
+        }
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 def default_deliver(payload, order):
     """付费交付物 = 该次调用要渲染的批改报告。
 
-    payload 形如 {'json': 路径} 或 {'jsondir': 目录, 'outdir': 目录, 'theme': 'apple'}。
+    payload 形如 {'reports': [内联报告...]}（远程买家，推荐）或
+    {'json': 路径} / {'jsondir': 目录, 'outdir': 目录}（本机自测用）。
     **注意**：本函数在 SQLite 写事务内被调用，只能做文件生成，
     不得再去访问订单库（会造成同库写锁自锁）。
     """
     payload = payload or {}
+
+    reports = payload.get("reports")
+    if isinstance(reports, list) and reports:
+        return _deliver_inline_reports(payload, order)
+
     outdir = payload.get("outdir") or os.path.join(os.getcwd(), "out")
 
     targets = []
@@ -87,23 +176,6 @@ def default_deliver(payload, order):
     if not produced and errors:
         raise DeliveryError("交付失败：%s" % json.dumps(errors, ensure_ascii=False))
 
-    # 报告文件内容随响应回传（Base64）——买家端没有服务器磁盘，
-    # 只回传本地路径等于"付了钱拿不到货"。凭据交付模式（produced 为空）不涉及。
-    files = []
-    for item in produced:
-        for kind, mime in (("html", "text/html"), ("pdf", "application/pdf")):
-            path = item.get(kind)
-            if not path or not os.path.isfile(path):
-                continue
-            with open(path, "rb") as fh:
-                files.append({
-                    "name": os.path.basename(path),
-                    "kind": kind,
-                    "mime": mime,
-                    "size": os.path.getsize(path),
-                    "data_base64": base64.b64encode(fh.read()).decode("ascii"),
-                })
-
     return {
         "resource_id": order["resource_id"],
         "out_trade_no": order["out_trade_no"],
@@ -111,7 +183,7 @@ def default_deliver(payload, order):
         "outdir": outdir,
         "theme": theme,
         "produced": produced,
-        "files": files,
+        "files": _write_back_files(produced),
         "errors": errors,
     }
 
@@ -138,11 +210,15 @@ class PayService:
     def count_reports(payload):
         """本次请求要交付多少篇报告 —— 决定账单金额。
 
+        - 内联 `reports` 列表              → 列表长度（远程买家，推荐）
         - 指定 `--json <一份>`            → 1 篇
         - 指定 `--jsondir <目录>`         → 目录里的 .json 个数
         - 两者都没给（只交付调用凭据）      → 1 篇
         """
         payload = payload or {}
+        reports = payload.get("reports")
+        if isinstance(reports, list) and reports:
+            return len(reports)
         if payload.get("json"):
             return 1
         d = payload.get("jsondir")

@@ -2,12 +2,12 @@
 name: gaokao-continuation-essay-grading
 slug: gaokao-continuation-essay-grading
 displayName: 高中英语读后续写自动批改Skill
-version: 1.3.1
-summary: "批改学生手写的读后续写答题卡，产出 11 个板块的 A4 个人报告（HTML + PDF）；批整班附班级成绩台账。默认 Apple 版式，打印友好；可选 1:1 复刻批改报告样本的原版（--theme classic）。"
+version: 1.4.0
+summary: "批改学生手写的读后续写答题卡，产出 11 个板块的 A4 个人报告（HTML + PDF）；批整班附班级成绩台账。默认 Apple 版式，打印友好；可选 1:1 复刻批改报告样本的原版（--theme classic）。支持本地渲染，也支持把批改 JSON 内联提交给付费服务端渲染并回传。"
 license: GPL-3.0
 homepage: https://github.com/Cocogoat-77/gaokao-continuation-essay-grading
 tags: 教育,英语,作文批改,读后续写,高中,教师工具
-description: "高中英语读后续写作文自动批改与报告生成。输入学生手写答题卡（JPEG 扫描件）与原题材料，输出逐句批改、情节分析、出彩表达、个性化提升、润色稿等 11 个板块的个人报告（HTML + A4 PDF），并可批量处理整个班级、生成班级成绩台账。支持上架为按篇计费的付费技能（Pay Skill）：内置支付宝 AI 按量付费 402 协议，含 Payment-Needed 账单下发、Payment-Proof 携带凭证重试、payment.verify 验付调用、fulfillment.confirm 履约确认与订单持久化幂等。触发词：读后续写批改、作文自动批改、答题卡批改、英语作文报告、生成批改报告、批量批改作文、付费技能、按量付费、402 收款、Pay Skill。"
+description: "高中英语读后续写作文自动批改与报告生成。输入学生手写答题卡（JPEG 扫描件）与原题材料，输出逐句批改、情节分析、出彩表达、个性化提升、润色稿等 11 个板块的个人报告（HTML + A4 PDF），并可批量处理整个班级、生成班级成绩台账。支持上架为按篇计费的付费技能（Pay Skill）：内置支付宝 AI 按量付费 402 协议，含 Payment-Needed 账单下发、Payment-Proof 携带凭证重试、payment.verify 验付调用、fulfillment.confirm 履约确认与订单持久化幂等。远程买家可把批改 JSON 以 `payload.reports` 内联提交，由服务端渲染并随响应回传报告文件（Base64），本地无需渲染依赖。触发词：读后续写批改、作文自动批改、答题卡批改、英语作文报告、生成批改报告、批量批改作文、付费技能、按量付费、402 收款、Pay Skill。"
 description_en: "Grade handwritten Gaokao continuation-writing answer sheets and produce structured A4 PDF reports (11 sections: sentence-by-sentence correction, plot analysis, highlights, personalised upgrades, polished version) plus a class-wide score ledger. Can be published as a pay-per-report paid skill: ships an Alipay AI pay-per-use (HTTP 402) integration with Payment-Needed billing, Payment-Proof retry, alipay.aipay.agent.payment.verify, alipay.aipay.agent.fulfillment.confirm, and idempotent order persistence. Use for continuation-writing grading, answer-sheet grading, batch essay grading, paid skill monetisation, or generating English essay feedback reports."
 author: Cocogoat-77
 agent_created: true
