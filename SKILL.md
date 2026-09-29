@@ -140,7 +140,7 @@ python scripts/render.py --jsondir ./final --outdir ./out
 
 ## 付费调用（Pay Skill · 支付宝 AI 按量付费）
 
-本 Skill 上架 SkillHub 作为 **Pay Skill** 时，按 **报告篇数**计费（默认 `0.01` 元/篇）。
+本 Skill 上架 SkillHub 作为 **Pay Skill** 时，按 **报告篇数**计费（默认 `0.02` 元/篇）。
 付费链路走支付宝 **AI 按量付费（HTTP 402 协议）**：`402` 账单下发 → 携带 `Payment-Proof` 重试
 → 验付 → 履约确认 → 订单持久化与幂等。完整规范见 **`references/skillpay.md`**，实现在 `scripts/skillpay/`。
 
@@ -183,7 +183,7 @@ python scripts/skillpay/server.py --port 8787
 | 4 | **履约确认** | 资源生成后必须调 `alipay.aipay.agent.fulfillment.confirm`，**确认成功后才标记 `FULFILLED`**；失败返回 502 且允许用同一凭证重试 | `gateway.fulfillment_confirm` / `store.mark_fulfilled` |
 | 5 | **订单持久化与幂等** | 返回 `Payment-Needed` 前持久化 `out_trade_no`/`resource_id`/篇数/金额/状态/有效期；本地订单匹配、资源防串、金额一致性、**同一订单重复携带 `Payment-Proof` 不重复发放资源** | `store.py`（SQLite + `BEGIN IMMEDIATE` + `trade_no` 唯一索引） |
 
-**计费口径**：账单金额 = `unit_price`（默认 `0.01` 元/篇）× 本次请求篇数
+**计费口径**：账单金额 = `unit_price`（默认 `0.02` 元/篇）× 本次请求篇数
 （`--json` 记 1 篇，`--jsondir` 记目录里 `.json` 的个数；单次上限 `quantity_cap`，默认 2500）。
 `unit_price` 必须与 SkillHub 发布表单里的定价一致。
 

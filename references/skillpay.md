@@ -140,10 +140,10 @@ fulfill_status : UNFULFILLED ──→ PENDING_CONFIRM ──→ FULFILLED
 
 **按报告篇数计价**：账单金额 = `unit_price` × 本次请求篇数。
 
-- 单价默认 `0.01` 元/篇（`SKILLPAY_UNIT_PRICE`）
-- 篇数来源：`--json`（1 篇）或 `--jsondir`（目录里 `.json` 个数）
+- 单价默认 `0.02` 元/篇（`SKILLPAY_UNIT_PRICE`）
+- 篇数来源：内联 `reports`（列表长度，远程买家）、`--json`（1 篇）或 `--jsondir`（目录里 `.json` 个数）
 - 单次调用篇数上限 `quantity_cap`（默认 2500），防止误传目录导致天价账单
-- 例：一个班 40 篇 → 账单 `0.40` 元，`goods_name` 写明「40 篇 × 0.01 元」
+- 例：一个班 40 篇 → 账单 `0.80` 元，`goods_name` 写明「40 篇 × 0.02 元」
 - **`unit_price` 必须与 SkillHub 发布表单里的定价一致**，避免误导用户
 
 篇数在下单时写入订单，`complete` 时会重新计算并比对 —— 篇数被改则金额不符，一律回到 402。
@@ -159,7 +159,7 @@ fulfill_status : UNFULFILLED ──→ PENDING_CONFIRM ──→ FULFILLED
 | `SKILLPAY_SELLER_ID` | 商户号 |
 | `SKILLPAY_SELLER_NAME` | 商户名称 |
 | `SKILLPAY_SERVICE_ID` | 服务市场 serviceId（生产必填真实值） |
-| `SKILLPAY_UNIT_PRICE` | 单价（元/篇），默认 `0.01` |
+| `SKILLPAY_UNIT_PRICE` | 单价（元/篇），默认 `0.02` |
 | `SKILLPAY_QUANTITY_CAP` | 单次调用篇数上限，默认 `2500` |
 | `SKILLPAY_MERCHANT_PRIVATE_KEY` | 商家应用私钥（裸 base64 或 PEM，或 `file:路径`） |
 | `SKILLPAY_ALIPAY_PUBLIC_KEY` | 支付宝公钥（验签用） |
@@ -178,6 +178,20 @@ fulfill_status : UNFULFILLED ──→ PENDING_CONFIRM ──→ FULFILLED
 3. 订单库权限不应宽于 `0600`；单次联调的临时产物用完即清。
 4. 全程不向用户暴露支付链接、二维码原文或交易号等中间过程。
 5. 沙箱 appId / 私钥 / 支付宝公钥必须来自**同一套**沙箱应用，不得混用。
+
+### HTTP 服务契约（远程买家 / 部署侧）
+
+- **端点**：`POST /v1/grade`（`server.py`，建议配 `--tls-cert/--tls-key` 走 HTTPS；
+  健康检查 `GET /healthz`，价格 `GET /v1/pay-info`，履约确认重试 `POST /v1/ack`）。
+- **请求体**：`{"payload": {...}}`，payload 三选一：
+  - **内联报告（远程买家，推荐）**：`{"reports": [{"name": "3021_张三.json", "content": {…报告JSON…}}], "theme": "apple"}`
+    ——服务端写入临时目录渲染（**忽略买家传的任何路径**），响应 `content.files[]` 携带
+    HTML/PDF 的 Base64（`name/kind/mime/size/data_base64`），`produced` 只回传文件名；
+    渲染完临时目录即删。单次上限 500 篇；请求体超 64MB 返回 413。
+  - **本机路径（自测用）**：`{"json": "路径"}` 或 `{"jsondir": "目录", "outdir": "输出目录"}`
+  - **空 payload**：凭据交付模式（计 1 篇，不产文件，用于联调）。
+- **买家侧现成实现**：精简版 Skill 的 `scripts/submit_grade.py`（纯标准库，
+  `probe` / `complete` / `pay-info`，请求体缓存于 `.skillpay_submit/` 保证重试同一请求）。
 
 ## 八、本地操作
 
