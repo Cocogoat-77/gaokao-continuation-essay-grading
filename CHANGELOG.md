@@ -11,6 +11,21 @@
 
 ---
 
+## [1.4.2] - 2026-09-30
+
+### 新增
+
+- **作者自用暗号 `owner_key`**：请求 `payload.owner_key` 与服务器配置
+  （`skillpay.local.json` 的 `owner_key` / 环境变量 `SKILLPAY_OWNER_KEY`）一致时，
+  `/v1/grade` 直接免费渲染并回传（响应 `self_use: true`），**不走 402、不建订单、支持多篇批量**。
+  比对用 `hmac.compare_digest` 防时序侧信道；**暗号不匹配照常进入计费流程**——
+  猜错暗号反而要付钱，天然防爆破。配置留空＝功能关闭。
+  `config.py` 白名单新增 `owner_key`；`service.py` 新增 `self_use_grade()`；
+  `server.py` 在计费分派前挂钩；`selftest.py` 新增【十二】6 项用例（命中/猜错/未带/
+  功能关闭/缺 reports），72/72 通过。密钥只存服务器本地配置，绝不入库、不进包。
+
+---
+
 ## [1.4.1] - 2026-09-30
 
 ### 新增

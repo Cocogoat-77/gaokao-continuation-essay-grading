@@ -34,7 +34,7 @@ _FIELDS = (
     "mode", "gateway", "app_id", "seller_id", "seller_name", "service_id",
     "unit_price", "amount", "quantity_cap", "resource_id", "goods_name",
     "merchant_private_key", "alipay_public_key", "state_dir", "pay_window_min",
-    "gateway_impl",
+    "gateway_impl", "owner_key",
 )
 
 
@@ -62,6 +62,9 @@ def load(local_file=None):
         "state_dir": _state_dir_default(),
         "pay_window_min": DEFAULT_PAY_WINDOW_MIN,
         "gateway_impl": "alipay",       # alipay | mock（mock 仅供自测）
+        # 作者自用暗号：请求 payload 带相同 owner_key 时跳过计费免费渲染。
+        # 留空 = 功能关闭。只存在 skillpay.local.json / SKILLPAY_OWNER_KEY，绝不入库。
+        "owner_key": "",
     }
 
     # 2) 本地配置文件

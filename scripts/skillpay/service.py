@@ -14,6 +14,7 @@
 """
 import base64
 import hashlib
+import hmac
 import json
 import os
 import shutil
@@ -306,6 +307,46 @@ class PayService:
             "trial_date": today,
             "content": content,
         })
+
+    # -------- 作者自用暗号：payload.owner_key 命中即免费渲染（不走 402、不建订单） --------
+    def self_use_grade(self, payload):
+        """作者密钥通道。
+
+        - 配置未设 owner_key、或请求未带/不匹配 → 返回 None，调用方照常走
+          probe/complete 计费流程（**猜错暗号反而要付钱**，爆破不划算）；
+        - 命中 → 200 + files[]（支持多篇批量），响应带 self_use=true；
+        - 渲染失败 → 500 DELIVERY_ERROR。
+        """
+        payload = payload or {}
+        key = str(payload.get("owner_key") or "")
+        expected = str(self.cfg.get("owner_key") or "")
+        if not expected or not key or not hmac.compare_digest(key, expected):
+            return None
+
+        reports = payload.get("reports")
+        if not isinstance(reports, list) or not reports:
+            return self._resp(400, {
+                "code": "SELF_USE_BAD_REQUEST",
+                "message": "自用通道需要内联 reports（≥1 篇）",
+            })
+        if len(reports) > MAX_INLINE_REPORTS:
+            return self._resp(400, {
+                "code": "SELF_USE_TOO_MANY",
+                "message": "单次最多 %d 篇" % MAX_INLINE_REPORTS,
+            })
+
+        ip_tag = hashlib.sha1(("self:" + key).encode("utf-8")).hexdigest()[:8]
+        pseudo_order = {
+            "resource_id": self.resource_id,
+            "out_trade_no": "SELF_%s_%s" % (
+                datetime.now().strftime("%Y%m%d%H%M%S"), ip_tag),
+        }
+        try:
+            content = _deliver_inline_reports(payload, pseudo_order)
+        except DeliveryError as exc:
+            return self._resp(500, {"code": "DELIVERY_ERROR", "message": str(exc)})
+
+        return self._resp(200, {"code": "OK", "self_use": True, "content": content})
 
     # -------- 第 1 步：probe —— 402 账单下发 --------
     def probe(self, payload=None):

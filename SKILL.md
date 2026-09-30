@@ -2,7 +2,7 @@
 name: gaokao-continuation-essay-grading
 slug: gaokao-continuation-essay-grading
 displayName: 高中英语读后续写自动批改Skill
-version: 1.4.1
+version: 1.4.2
 summary: "批改学生手写的读后续写答题卡，产出 11 个板块的 A4 个人报告（HTML + PDF）；批整班附班级成绩台账。默认 Apple 版式，打印友好；可选 1:1 复刻批改报告样本的原版（--theme classic）。支持本地渲染，也支持把批改 JSON 内联提交给付费服务端渲染并回传。"
 license: GPL-3.0
 homepage: https://github.com/Cocogoat-77/gaokao-continuation-essay-grading

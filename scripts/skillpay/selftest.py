@@ -63,6 +63,7 @@ def make_cfg(state_dir, priv, pub):
         "state_dir": state_dir,
         "pay_window_min": 30,
         "gateway_impl": "mock",
+        "owner_key": "",
     }
 
 
@@ -393,6 +394,45 @@ def main():
         check("坏请求 → 400/500 后当日额度仍在",
               t6["status"] in (400, 500) and t7["status"] == 200,
               "t6=%s t7=%s" % (t6["status"], t7["status"]))
+
+        print("\n【十二】作者自用暗号 owner_key —— 命中免费，猜错掉进付费流程")
+        state_d = os.path.join(tmp, "state_d")
+        svc_d, gw_d = build_service(state_d, priv, pub, resolver=resolver,
+                                    deliver=fake_deliver)
+        svc_d.cfg["owner_key"] = "sk-author-test-123"
+        before_total = svc_d.store.stats()["total"]
+
+        two_reports = {"reports": [
+            {"name": "9003_a.json", "content": mini_report("9003", "自用甲")},
+            {"name": "9004_b.json", "content": mini_report("9004", "自用乙")},
+        ]}
+        s1 = svc_d.self_use_grade(dict(two_reports, owner_key="sk-author-test-123"))
+        c1 = (s1["body"] or {}).get("content") or {}
+        check("暗号命中 → 200 + self_use + 回传文件",
+              s1["status"] == 200 and s1["body"].get("self_use") is True
+              and len(c1.get("files") or []) == 4,
+              "status=%s files=%d" % (s1["status"], len(c1.get("files") or [])))
+        check("自用不建订单、不走计费",
+              svc_d.store.stats()["total"] == before_total,
+              "orders=%s" % svc_d.store.stats()["total"])
+        check("produced 不泄漏服务器路径",
+              all("/" not in p.get("json", "") and "\\" not in p.get("json", "")
+                  for p in c1.get("produced", [])))
+
+        s2 = svc_d.self_use_grade(dict(two_reports, owner_key="wrong-key"))
+        check("暗号错误 → 返回 None（掉进正常计费流程）", s2 is None)
+        p2 = svc_d.probe(dict(two_reports, owner_key="wrong-key"))
+        check("暗号错误照常出 402 账单（按篇计价，测试单价 0.01）",
+              p2["status"] == 402 and p2["body"]["amount"] == "0.02",
+              "status=%s amount=%s" % (p2["status"], p2["body"].get("amount")))
+        s3 = svc_d.self_use_grade(dict(two_reports, owner_key=""))
+        check("未带暗号 → None（正常流程）", s3 is None)
+        s5 = svc_d.self_use_grade({"owner_key": "sk-author-test-123"})
+        check("命中但没有 reports → 400", s5 is not None and s5["status"] == 400,
+              "status=%s" % (s5["status"] if s5 else "None"))
+        svc_d.cfg["owner_key"] = ""     # 功能关闭
+        s4 = svc_d.self_use_grade(dict(two_reports, owner_key="sk-author-test-123"))
+        check("服务器未配置 owner_key → None（功能关闭）", s4 is None)
 
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

@@ -88,6 +88,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(SERVICE.trial(body.get("payload"), ip))
 
         if path == RESOURCE_PATH:
+            # 作者自用暗号：payload.owner_key 与服务器配置一致 → 免费渲染，
+            # 不走 probe/complete 计费流程；未配置或不匹配则照常计费（None）。
+            free = SERVICE.self_use_grade(body.get("payload"))
+            if free is not None:
+                print("[SELF] 自用通道命中", flush=True)
+                return self._send(free)
             # ★ 无 Payment-Proof → probe（402 账单下发）
             proof_header = self.headers.get("Payment-Proof") or body.get("payment_proof")
             print("[REQ] %s proof=%s" % (path, ("yes(%d chars)" % len(proof_header)) if proof_header else "no"), flush=True)

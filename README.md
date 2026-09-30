@@ -2,7 +2,7 @@
 
 高中英语读后续写**手写答题卡**自动批改系统：逐词转写 → 结构化批改 JSON → 11 板块 A4 报告（HTML + PDF）+ 班级成绩台账。可作为 [WorkBuddy](https://www.workbuddy.cn) Skill 使用，也可只取其中的渲染管线、付费层独立运行。
 
-**v1.4.1**（2026-09-30） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE.md) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
+**v1.4.2**（2026-09-30） · [更新日志](CHANGELOG.md) · [GPL-3.0 许可](LICENSE.md) · 作者 [Cocogoat-77](https://github.com/Cocogoat-77)
 
 > 面向使用者的图文教程见 [SkillHub](https://skillhub.cn/skills/indiv-cocogoat/gaokao-continuation-essay-grading)；本 README 是面向开发者的**程序说明**。
 

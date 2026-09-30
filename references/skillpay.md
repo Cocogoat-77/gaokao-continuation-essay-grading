@@ -186,6 +186,10 @@ fulfill_status : UNFULFILLED ──→ PENDING_CONFIRM ──→ FULFILLED
 - **免费体验**：`POST /v1/trial`——每个来源 IP 每天可免费渲染 **1 篇**（北京时间自然日，
   零点自动刷新），请求体与 `/v1/grade` 相同但 `reports` 只允许 1 份；**不走 402、不建订单**；
   额度用完返回 429（`TRIAL_QUOTA_USED`），渲染失败自动退还当日额度。
+- **作者自用暗号**：`payload.owner_key` 与服务器配置（`skillpay.local.json` 的 `owner_key`，
+  或 `SKILLPAY_OWNER_KEY`）一致时，`/v1/grade` 直接免费渲染并回传（响应带 `self_use: true`），
+  **不走 402、不建订单**，支持多篇批量。留空＝功能关闭；暗号不匹配则照常进入计费流程
+  （猜错暗号反而要付钱，天然防爆破）。密钥只存服务器本地配置，绝不入库/入包。
 - **请求体**：`{"payload": {...}}`，payload 三选一：
   - **内联报告（远程买家，推荐）**：`{"reports": [{"name": "3021_张三.json", "content": {…报告JSON…}}], "theme": "apple"}`
     ——服务端写入临时目录渲染（**忽略买家传的任何路径**），响应 `content.files[]` 携带
