@@ -8,6 +8,7 @@
     python scripts/skillpay/server.py --port 8787
 路由：
     POST /v1/grade      付费资源（批改报告生成）—— probe / complete 都打这里
+    POST /v1/trial      免费体验（每来源 IP 每天 1 篇，不走支付）
     GET  /v1/pay-info   价格信息（不下单）
     POST /v1/ack        重试履约确认（body: {"trade_no": "..."}）
     GET  /healthz       健康检查
@@ -79,6 +80,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"status": 413, "headers": {},
                                "body": {"code": "PAYLOAD_TOO_LARGE",
                                         "message": "请求体超过 64MB 上限，请分批提交"}})
+
+        if path == "/v1/trial":
+            # 免费体验：按来源 TCP 对端 IP 记账（服务器为直连模式，无转发头）
+            ip = self.client_address[0]
+            print("[TRIAL] from %s" % ip, flush=True)
+            return self._send(SERVICE.trial(body.get("payload"), ip))
 
         if path == RESOURCE_PATH:
             # ★ 无 Payment-Proof → probe（402 账单下发）

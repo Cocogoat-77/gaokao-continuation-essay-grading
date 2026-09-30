@@ -41,6 +41,14 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_trade_no
   ON orders(trade_no) WHERE trade_no IS NOT NULL AND trade_no <> '';
 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
+CREATE TABLE IF NOT EXISTS trials (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ip          TEXT NOT NULL,
+  date        TEXT NOT NULL,
+  report_name TEXT,
+  created_at  TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_trials_ip_date ON trials(ip, date);
 """
 
 ORDER_STATUS = ("PENDING_PAYMENT", "PAID")
@@ -195,6 +203,32 @@ class OrderStore:
                           trade_no=COALESCE(?, trade_no), updated_at=?
                     WHERE out_trade_no=?""",
                 (trade_no, _now_iso(), out_trade_no))
+
+    # ---------- 5) 免费体验：每 IP 每天一篇（北京时间自然日） ----------
+    def trial_used_today(self, ip, date_str):
+        """该来源今天是否已用过免费体验。缺关键信息时防御性地视为已用。"""
+        if not ip or not date_str:
+            return True
+        with self._conn() as c:
+            row = c.execute("SELECT 1 FROM trials WHERE ip=? AND date=? LIMIT 1",
+                            (ip, date_str)).fetchone()
+        return row is not None
+
+    def record_trial(self, ip, date_str, report_name=""):
+        """占用一次当日免费额度。同 IP 同日重复占用（撞唯一索引）返回 False。"""
+        if not ip or not date_str:
+            return False
+        with self._conn() as c:
+            cur = c.execute(
+                """INSERT OR IGNORE INTO trials (ip, date, report_name, created_at)
+                   VALUES (?,?,?,?)""",
+                (ip, date_str, report_name or "", _now_iso()))
+        return cur.rowcount > 0
+
+    def cancel_trial(self, ip, date_str):
+        """退还当日额度（渲染失败时不让买家白占一天的名额）。"""
+        with self._conn() as c:
+            c.execute("DELETE FROM trials WHERE ip=? AND date=?", (ip, date_str))
 
     # ---------- 辅助 / 审计 ----------
     def stats(self):

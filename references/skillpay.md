@@ -183,6 +183,9 @@ fulfill_status : UNFULFILLED ──→ PENDING_CONFIRM ──→ FULFILLED
 
 - **端点**：`POST /v1/grade`（`server.py`，建议配 `--tls-cert/--tls-key` 走 HTTPS；
   健康检查 `GET /healthz`，价格 `GET /v1/pay-info`，履约确认重试 `POST /v1/ack`）。
+- **免费体验**：`POST /v1/trial`——每个来源 IP 每天可免费渲染 **1 篇**（北京时间自然日，
+  零点自动刷新），请求体与 `/v1/grade` 相同但 `reports` 只允许 1 份；**不走 402、不建订单**；
+  额度用完返回 429（`TRIAL_QUOTA_USED`），渲染失败自动退还当日额度。
 - **请求体**：`{"payload": {...}}`，payload 三选一：
   - **内联报告（远程买家，推荐）**：`{"reports": [{"name": "3021_张三.json", "content": {…报告JSON…}}], "theme": "apple"}`
     ——服务端写入临时目录渲染（**忽略买家传的任何路径**），响应 `content.files[]` 携带

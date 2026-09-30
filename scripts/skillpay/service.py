@@ -13,12 +13,13 @@
   - **任一校验失败一律回到 402**，绝不返回资源；也绝不用「结果不明」为由让用户重复付款。
 """
 import base64
+import hashlib
 import json
 import os
 import shutil
 import tempfile
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from . import bill, config as config_mod, proof as proof_mod
 from .gateway import get_gateway
@@ -26,6 +27,11 @@ from .store import IN_PROGRESS, FULFILL_STATUS, ORDER_STATUS, OrderStore, normal
 
 # 内联模式单次请求的报告篇数保险丝（真正的计费上限由 quantity_cap 在 probe 把关）
 MAX_INLINE_REPORTS = 500
+
+
+def _beijing_today():
+    """北京时间自然日（免费体验按北京凌晨 0 点刷新，与服务器系统时区无关）。"""
+    return datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d")
 
 
 class DeliveryError(RuntimeError):
@@ -259,6 +265,47 @@ class PayService:
             "mode": self.cfg["mode"],
             "note": "实际扣费以服务返回的 402 + Payment-Needed 账单金额为准，二者必须一致",
         }
+
+    # -------- 免费体验：每 IP 每天一篇（不走 402、不建订单、不涉及支付） --------
+    def trial(self, payload, client_ip):
+        """免费试批一次：渲染 1 篇并回传文件，额度按 (IP, 北京日期) 记账。
+
+        - 一次只收 1 篇（批量请走付费 probe）；
+        - 先占额度再渲染：唯一索引保证并发下同 IP 同日只成功一次；
+        - 渲染失败自动退还当日额度，不让买家白占一天名额。
+        """
+        payload = payload or {}
+        reports = payload.get("reports")
+        if not isinstance(reports, list) or len(reports) != 1:
+            return self._resp(400, {
+                "code": "TRIAL_BAD_REQUEST",
+                "message": "免费体验一次只能提交 1 篇报告（批量请走付费提交）",
+            })
+
+        today = _beijing_today()
+        if not self.store.record_trial(client_ip, today,
+                                       reports[0].get("name") or ""):
+            return self._resp(429, {
+                "code": "TRIAL_QUOTA_USED",
+                "message": "该来源今天的免费体验已用过（每天 1 篇，次日自动恢复），"
+                           "更多报告请使用付费提交",
+            })
+
+        ip_tag = hashlib.sha1(str(client_ip).encode("utf-8")).hexdigest()[:8]
+        pseudo_order = {"resource_id": self.resource_id,
+                        "out_trade_no": "TRIAL_%s_%s" % (today, ip_tag)}
+        try:
+            content = _deliver_inline_reports(payload, pseudo_order)
+        except DeliveryError as exc:
+            self.store.cancel_trial(client_ip, today)
+            return self._resp(500, {"code": "DELIVERY_ERROR", "message": str(exc)})
+
+        return self._resp(200, {
+            "code": "OK",
+            "trial": True,
+            "trial_date": today,
+            "content": content,
+        })
 
     # -------- 第 1 步：probe —— 402 账单下发 --------
     def probe(self, payload=None):

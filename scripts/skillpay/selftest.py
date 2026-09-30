@@ -357,6 +357,43 @@ def main():
         print("\n【十】订单统计")
         print("  %s" % json.dumps(svc.store.stats(), ensure_ascii=False))
 
+        print("\n【十一】免费体验 trial —— 每 IP 每天一篇（北京时间自然日）")
+        one = {"reports": [{"name": "trial_9001.json", "content": mini_report("9001", "试一")}]}
+        two = {"reports": [{"name": "trial_9002.json", "content": mini_report("9002", "试二")}]}
+        t1 = svc_c.trial(one, "203.0.113.10")
+        c1 = (t1["body"] or {}).get("content") or {}
+        check("首次体验 200 且回传 HTML+PDF",
+              t1["status"] == 200 and t1["body"].get("trial") is True
+              and len(c1.get("files") or []) == 2,
+              "status=%s files=%d" % (t1["status"], len(c1.get("files") or [])))
+        check("体验结果不含服务器路径",
+              all("/" not in p.get("json", "") and "\\" not in p.get("json", "")
+                  for p in c1.get("produced", [])))
+        t2 = svc_c.trial(one, "203.0.113.10")
+        check("同 IP 当天第二次 → 429", t2["status"] == 429,
+              "status=%s" % t2["status"])
+        t3 = svc_c.trial(two, "203.0.113.11")
+        check("不同 IP 当天各有额度 → 200", t3["status"] == 200,
+              "status=%s" % t3["status"])
+        t4 = svc_c.trial({"reports": one["reports"] * 2}, "203.0.113.99")
+        check("一次提交多篇 → 400", t4["status"] == 400,
+              "status=%s" % t4["status"])
+        # 模拟跨天：把 IP A 的记录日期改到过去 → 额度恢复
+        conn = sqlite3.connect(svc_c.store.db_path)
+        conn.execute("UPDATE trials SET date='2000-01-01' WHERE ip='203.0.113.10'")
+        conn.commit()
+        conn.close()
+        t5 = svc_c.trial(one, "203.0.113.10")
+        check("次日（模拟）额度自动恢复 → 200", t5["status"] == 200,
+              "status=%s" % t5["status"])
+        # 渲染失败退额度：塞一份非法 content（content 不是对象）→ 500 且额度未被占用
+        bad = {"reports": [{"name": "bad.json", "content": "not-a-dict"}]}
+        t6 = svc_c.trial(bad, "203.0.113.77")
+        t7 = svc_c.trial(one, "203.0.113.77")
+        check("坏请求 → 400/500 后当日额度仍在",
+              t6["status"] in (400, 500) and t7["status"] == 200,
+              "t6=%s t7=%s" % (t6["status"], t7["status"]))
+
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
